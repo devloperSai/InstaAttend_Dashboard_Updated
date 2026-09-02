@@ -11,10 +11,6 @@ permissions:
   contents: read
   id-token: write
 
-concurrency:
-  group: admin-frontend-${{ github.ref_name }}
-  cancel-in-progress: true
-
 jobs:
   deploy-test:
     if: github.ref_name == 'test'
