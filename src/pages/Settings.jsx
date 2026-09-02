@@ -235,350 +235,363 @@ const Settings = () => {
 
   return (
     <MainLayout>
-      <div className="flex justify-between items-center mb-6 px-4 sm:px-0">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
-          Settings
-        </h1>
+      <div
+        className="-m-6 min-h-[calc(100vh-4rem)] p-4 md:p-6"
+        style={{ backgroundColor: "hsl(var(--dashboard-bg))" }}
+      >
+        <div className="flex justify-between items-center mb-6 px-4 sm:px-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">
+            Settings
+          </h1>
+        </div>
+
+        <Tabs defaultValue="company" className="w-full px-2 sm:px-0">
+          <TabsList className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+            <TabsTrigger value="company" className="text-xs sm:text-sm">
+              Company
+            </TabsTrigger>
+            <TabsTrigger value="departments" className="text-xs sm:text-sm">
+              Departments
+            </TabsTrigger>
+            <TabsTrigger value="designations" className="text-xs sm:text-sm">
+              Designations
+            </TabsTrigger>
+            <TabsTrigger value="general" className="text-xs sm:text-sm">
+              General
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="company">
+            <Card className="glass-panel border border-white/60">
+              <CardHeader>
+                <CardTitle className="text-foreground">
+                  Company Information
+                </CardTitle>
+                <CardDescription>
+                  Update your company details and information
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="company-name">Company Name</Label>
+                  <Input
+                    id="company-name"
+                    name="company_name"
+                    value={company.company_name || ""}
+                    onChange={handleCompanyChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address">Address</Label>
+                  <Textarea
+                    id="address"
+                    name="company_address"
+                    value={company.company_address || ""}
+                    onChange={handleCompanyChange}
+                    rows={3}
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input
+                      id="phone"
+                      name="company_phone"
+                      value={company.company_phone || ""}
+                      onChange={handleCompanyChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      name="company_email"
+                      value={company.company_email || ""}
+                      onChange={handleCompanyChange}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="website">Website</Label>
+                    <Input
+                      id="website"
+                      name="company_website"
+                      value={company.company_website || ""}
+                      onChange={handleCompanyChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="taxId">Tax ID / Registration Number</Label>
+                    <Input
+                      id="taxId"
+                      name="company_gst_no"
+                      value={company.company_gst_no || ""}
+                      onChange={handleCompanyChange}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button
+                  onClick={saveCompanyData}
+                  className="bg-instattend-500 hover:bg-instattend-600 w-full sm:w-auto"
+                >
+                  Save Changes
+                </Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="departments">
+            <Card className="glass-panel border border-white/60">
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <CardTitle className="text-foreground">
+                    Departments
+                  </CardTitle>
+                  <CardDescription>
+                    Manage company departments and teams
+                  </CardDescription>
+                </div>
+                <Button
+                  className="bg-instattend-500 hover:bg-instattend-600 w-full sm:w-auto"
+                  onClick={() => setAddDepartmentOpen(true)}
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  <span className="whitespace-nowrap">Add Department</span>
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table className="min-w-full">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="whitespace-nowrap">
+                          Department
+                        </TableHead>
+                        <TableHead className="whitespace-nowrap">
+                          Address
+                        </TableHead>
+                        <TableHead className="whitespace-nowrap">Lead</TableHead>
+                        <TableHead className="text-right whitespace-nowrap">
+                          Actions
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {departments.map((department) => (
+                        <TableRow key={department.id}>
+                          <TableCell className="whitespace-nowrap">
+                            {department.department_name}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {department.department_address}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {department.department_lead || "NA"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end space-x-2">
+                              <Button
+                                variant="ghost"
+                                className="h-8 w-8 p-0"
+                                onClick={() => {
+                                  setSelectedDepartment(department);
+                                  setEditDepartmentOpen(true);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/*Department Forms*/}
+            <DepartmentForm
+              open={addDepartmentOpen}
+              onOpenChange={setAddDepartmentOpen}
+              onSubmit={handleAddDepartment}
+            />
+
+            <DepartmentForm
+              open={editDepartmentOpen}
+              onOpenChange={setEditDepartmentOpen}
+              department={selectedDepartment}
+              onSubmit={handleUpdateDepartment}
+            />
+          </TabsContent>
+
+          <TabsContent value="designations">
+            <Card className="glass-panel border border-white/60">
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <CardTitle className="text-foreground">
+                    Designations
+                  </CardTitle>
+                  <CardDescription>
+                    Manage employee roles and designations
+                  </CardDescription>
+                </div>
+                <Button
+                  className="bg-instattend-500 hover:bg-instattend-600 w-full sm:w-auto"
+                  onClick={() => setAddDesignationOpen(true)}
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  <span className="whitespace-nowrap">Add Designation</span>
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table className="min-w-full">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="whitespace-nowrap">
+                          Designation
+                        </TableHead>
+                        <TableHead className="whitespace-nowrap">
+                          Have Admin Access
+                        </TableHead>
+                        <TableHead className="text-right whitespace-nowrap">
+                          Actions
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {designations.map((designation) => (
+                        <TableRow key={designation.id}>
+                          <TableCell className="whitespace-nowrap">
+                            {designation.designation_name}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {designation.admin_access ? "Yes" : "No"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end space-x-2">
+                              <Button
+                                variant="ghost"
+                                className="h-8 w-8 p-0"
+                                onClick={() => {
+                                  setSelectedDesignation(designation);
+                                  setEditDesignationOpen(true);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+            {/* Designation forms */}
+            <DesignationForm
+              open={addDesignationOpen}
+              onOpenChange={setAddDesignationOpen}
+              onSubmit={handleAddDesignation}
+            />
+
+            <DesignationForm
+              open={editDesignationOpen}
+              onOpenChange={setEditDesignationOpen}
+              designation={selectedDesignation}
+              onSubmit={handleUpdateDesignation}
+            />
+          </TabsContent>
+
+          <TabsContent value="general">
+            <Card className="glass-panel border border-white/60">
+              <CardHeader>
+                <CardTitle className="text-foreground">
+                  General Settings
+                </CardTitle>
+                <CardDescription>
+                  Configure system-wide settings and preferences
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="work-hours">Standard Work Hours</Label>
+                  <Input
+                    id="work-hours"
+                    name="standard_work_hours"
+                    type="number"
+                    value={generalSettings.standard_work_hours || ""}
+                    onChange={handleGeneralSettingsChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="timezone">Timezone</Label>
+                  <Input
+                    id="timezone"
+                    name="timezone"
+                    value={generalSettings.timezone || ""}
+                    onChange={handleGeneralSettingsChange}
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="week-start">Week Start Day</Label>
+                    <Input
+                      id="week-start"
+                      name="week_start_day"
+                      value={generalSettings.week_start_day || ""}
+                      onChange={handleGeneralSettingsChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="date-format">Date Format</Label>
+                    <Input
+                      id="date-format"
+                      name="date_format"
+                      value={generalSettings.date_format || ""}
+                      onChange={handleGeneralSettingsChange}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="leave-year">Leave Year Start</Label>
+                  <Input
+                    id="leave-year"
+                    name="leave_year_start"
+                    value={generalSettings.leave_year_start || ""}
+                    onChange={handleGeneralSettingsChange}
+                  />
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button
+                  className="bg-instattend-500 hover:bg-instattend-600 w-full sm:w-auto"
+                  onClick={saveGeneralSettings}
+                >
+                  Save Settings
+                </Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
-
-      <Tabs defaultValue="company" className="w-full px-2 sm:px-0">
-        <TabsList className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
-          <TabsTrigger value="company" className="text-xs sm:text-sm">
-            Company
-          </TabsTrigger>
-          <TabsTrigger value="departments" className="text-xs sm:text-sm">
-            Departments
-          </TabsTrigger>
-          <TabsTrigger value="designations" className="text-xs sm:text-sm">
-            Designations
-          </TabsTrigger>
-          <TabsTrigger value="general" className="text-xs sm:text-sm">
-            General
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="company">
-          <Card>
-            <CardHeader>
-              <CardTitle>Company Information</CardTitle>
-              <CardDescription>
-                Update your company details and information
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="company-name">Company Name</Label>
-                <Input
-                  id="company-name"
-                  name="company_name"
-                  value={company.company_name || ""}
-                  onChange={handleCompanyChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Textarea
-                  id="address"
-                  name="company_address"
-                  value={company.company_address || ""}
-                  onChange={handleCompanyChange}
-                  rows={3}
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    name="company_phone"
-                    value={company.company_phone || ""}
-                    onChange={handleCompanyChange}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    name="company_email"
-                    value={company.company_email || ""}
-                    onChange={handleCompanyChange}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="website">Website</Label>
-                  <Input
-                    id="website"
-                    name="company_website"
-                    value={company.company_website || ""}
-                    onChange={handleCompanyChange}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="taxId">Tax ID / Registration Number</Label>
-                  <Input
-                    id="taxId"
-                    name="company_gst_no"
-                    value={company.company_gst_no || ""}
-                    onChange={handleCompanyChange}
-                  />
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button
-                onClick={saveCompanyData}
-                className="bg-instattend-500 hover:bg-instattend-600 w-full sm:w-auto"
-              >
-                Save Changes
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="departments">
-          <Card>
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <CardTitle>Departments</CardTitle>
-                <CardDescription>
-                  Manage company departments and teams
-                </CardDescription>
-              </div>
-              <Button
-                className="bg-instattend-500 hover:bg-instattend-600 w-full sm:w-auto"
-                onClick={() => setAddDepartmentOpen(true)}
-              >
-                <Plus className="h-5 w-5 mr-2" />
-                <span className="whitespace-nowrap">Add Department</span>
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table className="min-w-full">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="whitespace-nowrap">
-                        Department
-                      </TableHead>
-                      <TableHead className="whitespace-nowrap">
-                        Address
-                      </TableHead>
-                      <TableHead className="whitespace-nowrap">Lead</TableHead>
-                      <TableHead className="text-right whitespace-nowrap">
-                        Actions
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {departments.map((department) => (
-                      <TableRow key={department.id}>
-                        <TableCell className="whitespace-nowrap">
-                          {department.department_name}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          {department.department_address}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          {department.department_lead || "NA"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end space-x-2">
-                            <Button
-                              variant="ghost"
-                              className="h-8 w-8 p-0"
-                              onClick={() => {
-                                setSelectedDepartment(department);
-                                setEditDepartmentOpen(true);
-                              }}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/*Department Forms*/}
-          <DepartmentForm
-            open={addDepartmentOpen}
-            onOpenChange={setAddDepartmentOpen}
-            onSubmit={handleAddDepartment}
-          />
-
-          <DepartmentForm
-            open={editDepartmentOpen}
-            onOpenChange={setEditDepartmentOpen}
-            department={selectedDepartment}
-            onSubmit={handleUpdateDepartment}
-          />
-        </TabsContent>
-
-        <TabsContent value="designations">
-          <Card>
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <CardTitle>Designations</CardTitle>
-                <CardDescription>
-                  Manage employee roles and designations
-                </CardDescription>
-              </div>
-              <Button
-                className="bg-instattend-500 hover:bg-instattend-600 w-full sm:w-auto"
-                onClick={() => setAddDesignationOpen(true)}
-              >
-                <Plus className="h-5 w-5 mr-2" />
-                <span className="whitespace-nowrap">Add Designation</span>
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table className="min-w-full">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="whitespace-nowrap">
-                        Designation
-                      </TableHead>
-                      <TableHead className="whitespace-nowrap">
-                        Have Admin Access
-                      </TableHead>
-                      <TableHead className="text-right whitespace-nowrap">
-                        Actions
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {designations.map((designation) => (
-                      <TableRow key={designation.id}>
-                        <TableCell className="whitespace-nowrap">
-                          {designation.designation_name}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {designation.admin_access ? "Yes" : "No"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end space-x-2">
-                            <Button
-                              variant="ghost"
-                              className="h-8 w-8 p-0"
-                              onClick={() => {
-                                setSelectedDesignation(designation);
-                                setEditDesignationOpen(true);
-                              }}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-          {/* Designation forms */}
-          <DesignationForm
-            open={addDesignationOpen}
-            onOpenChange={setAddDesignationOpen}
-            onSubmit={handleAddDesignation}
-          />
-
-          <DesignationForm
-            open={editDesignationOpen}
-            onOpenChange={setEditDesignationOpen}
-            designation={selectedDesignation}
-            onSubmit={handleUpdateDesignation}
-          />
-        </TabsContent>
-
-        <TabsContent value="general">
-          <Card>
-            <CardHeader>
-              <CardTitle>General Settings</CardTitle>
-              <CardDescription>
-                Configure system-wide settings and preferences
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="work-hours">Standard Work Hours</Label>
-                <Input
-                  id="work-hours"
-                  name="standard_work_hours"
-                  type="number"
-                  value={generalSettings.standard_work_hours || ""}
-                  onChange={handleGeneralSettingsChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="timezone">Timezone</Label>
-                <Input
-                  id="timezone"
-                  name="timezone"
-                  value={generalSettings.timezone || ""}
-                  onChange={handleGeneralSettingsChange}
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="week-start">Week Start Day</Label>
-                  <Input
-                    id="week-start"
-                    name="week_start_day"
-                    value={generalSettings.week_start_day || ""}
-                    onChange={handleGeneralSettingsChange}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="date-format">Date Format</Label>
-                  <Input
-                    id="date-format"
-                    name="date_format"
-                    value={generalSettings.date_format || ""}
-                    onChange={handleGeneralSettingsChange}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="leave-year">Leave Year Start</Label>
-                <Input
-                  id="leave-year"
-                  name="leave_year_start"
-                  value={generalSettings.leave_year_start || ""}
-                  onChange={handleGeneralSettingsChange}
-                />
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button
-                className="bg-instattend-500 hover:bg-instattend-600 w-full sm:w-auto"
-                onClick={saveGeneralSettings}
-              >
-                Save Settings
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-      </Tabs>
     </MainLayout>
   );
 };

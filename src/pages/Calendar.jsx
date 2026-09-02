@@ -25,6 +25,7 @@ import {
 } from "date-fns";
 import { getHolidays } from "../data/holidays";
 import { dashboardService } from "../api/services/dashboard.service.js";
+import { statusColors, hexToRgba, colors } from "../lib/theme.js";
 
 const Calendar = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -120,191 +121,249 @@ const Calendar = () => {
     };
   }, [calendarData]);
 
+  // Snapshot tile config — colors pulled from the shared theme so this
+  // matches the dashboard's status palette instead of one-off hex values.
+  const snapshotTiles = monthSnapshot
+    ? [
+        {
+          key: "total",
+          label: "Total Employees",
+          value: monthSnapshot.totalEmployees,
+          icon: Users,
+          color: colors.primary.DEFAULT,
+        },
+        {
+          key: "present",
+          label: "Avg. Present / Day",
+          value: monthSnapshot.avgPresent,
+          icon: UserCheck,
+          color: statusColors.present,
+        },
+        {
+          key: "absent",
+          label: "Total Absences (Month)",
+          value: monthSnapshot.totalAbsent,
+          icon: UserX,
+          color: statusColors.absent,
+        },
+      ]
+    : [];
+
   return (
     <MainLayout>
-      <div className="flex justify-between items-center mb-6 px-4 sm:px-0">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
-            Calendar
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Sundays, national holidays and live attendance at a glance
-          </p>
+      {/* Flat white page background — cards/components carry all the
+          color, matching how Index.jsx keeps its background separate
+          from the glass/surface cards on top of it. */}
+      <div className="-m-6 min-h-[calc(100vh-4rem)] bg-white p-4 md:p-6">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">
+              Calendar
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Sundays, national holidays and live attendance at a glance
+            </p>
+          </div>
         </div>
-      </div>
 
-      {/* Live month snapshot from the admin attendance-calendar API */}
-      {monthSnapshot && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 px-2 sm:px-0">
-          <Card className="border-none shadow-sm">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2.5 rounded-full bg-blue-500 text-white">
-                <Users className="h-4 w-4" />
+        {/* Live month snapshot from the admin attendance-calendar API */}
+        {snapshotTiles.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            {snapshotTiles.map((tile) => (
+              <div
+                key={tile.key}
+                className="rounded-xl border border-border bg-white p-4 flex items-center gap-3 shadow-soft transition-all duration-300 ease-smooth hover:-translate-y-0.5"
+              >
+                <div
+                  className="p-2.5 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{
+                    backgroundColor: hexToRgba(tile.color, 0.14),
+                    color: tile.color,
+                  }}
+                >
+                  <tile.icon className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">
+                    {tile.label}
+                  </p>
+                  <p className="text-lg font-bold text-foreground tabular-nums">
+                    {tile.value}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-gray-500">Total Employees</p>
-                <p className="text-lg font-bold text-gray-800">
-                  {monthSnapshot.totalEmployees}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-none shadow-sm">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2.5 rounded-full bg-green-500 text-white">
-                <UserCheck className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Avg. Present / Day</p>
-                <p className="text-lg font-bold text-gray-800">
-                  {monthSnapshot.avgPresent}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-none shadow-sm">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2.5 rounded-full bg-red-500 text-white">
-                <UserX className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Total Absences (Month)</p>
-                <p className="text-lg font-bold text-gray-800">
-                  {monthSnapshot.totalAbsent}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            ))}
+          </div>
+        )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-2 sm:px-0">
-        {/* Main calendar */}
-        <div className="lg:col-span-2 space-y-4">
-          <CalendarView
-            currentMonth={currentMonth}
-            onMonthChange={setCurrentMonth}
-            holidays={holidays}
-            attendanceMap={attendanceMap}
-            isLoading={isLoading}
-            selectedDate={selectedDate}
-            onSelectDate={setSelectedDate}
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main calendar */}
+          <div className="lg:col-span-2 space-y-4">
+            <CalendarView
+              currentMonth={currentMonth}
+              onMonthChange={setCurrentMonth}
+              holidays={holidays}
+              attendanceMap={attendanceMap}
+              isLoading={isLoading}
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+            />
 
-          {/* Legend */}
-          <div className="flex flex-wrap items-center gap-4 sm:gap-6 bg-white rounded-lg shadow-sm border border-gray-100 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-gray-200 border border-gray-300" />
-              <span className="text-xs text-gray-600">Sunday</span>
+            {/* Legend */}
+            <div className="flex flex-wrap items-center gap-4 sm:gap-6 bg-white rounded-lg border border-border px-4 py-3 shadow-soft">
+              <div className="flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full bg-muted border border-border" />
+                <span className="text-xs text-muted-foreground">Sunday</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: colors.primary.DEFAULT }}
+                />
+                <span className="text-xs text-muted-foreground">
+                  National Holiday
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: statusColors.late }}
+                />
+                <span className="text-xs text-muted-foreground">
+                  Optional Holiday
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="h-5 w-5 rounded-full bg-primary flex items-center justify-center text-[10px] text-primary-foreground font-semibold">
+                  {format(new Date(), "d")}
+                </span>
+                <span className="text-xs text-muted-foreground">Today</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-[10px] font-semibold"
+                  style={{ color: statusColors.present }}
+                >
+                  42P
+                </span>
+                <span
+                  className="text-[10px] font-semibold"
+                  style={{ color: statusColors.absent }}
+                >
+                  6A
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  Present / Absent (live)
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-instattend-500" />
-              <span className="text-xs text-gray-600">National Holiday</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-              <span className="text-xs text-gray-600">Optional Holiday</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="h-5 w-5 rounded-full bg-instattend-500 flex items-center justify-center text-[10px] text-white font-semibold">
-                {format(new Date(), "d")}
-              </span>
-              <span className="text-xs text-gray-600">Today</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-medium text-green-600">
-                42P
-              </span>
-              <span className="text-[10px] font-medium text-red-500">6A</span>
-              <span className="text-xs text-gray-600">
-                Present / Absent (live)
-              </span>
-            </div>
+
+            {/* Selected date detail */}
+            {selectedDate && (
+              <div className="bg-white rounded-lg border border-border px-4 py-3 shadow-soft">
+                <p className="text-sm font-semibold text-foreground">
+                  {format(selectedDate, "EEEE, dd MMMM yyyy")}
+                </p>
+                {selectedHoliday ? (
+                  <p className="text-sm text-primary mt-1">
+                    {selectedHoliday.name}
+                  </p>
+                ) : selectedDate.getDay() === 0 ? (
+                  <p className="text-sm text-muted-foreground mt-1">Sunday</p>
+                ) : selectedStats ? (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    <span
+                      className="font-medium"
+                      style={{ color: statusColors.present }}
+                    >
+                      {selectedStats.presentCount} Present
+                    </span>
+                    {"  ·  "}
+                    <span
+                      className="font-medium"
+                      style={{ color: statusColors.absent }}
+                    >
+                      {selectedStats.absentCount} Absent
+                    </span>
+                    {selectedStats.halfDayCount > 0 && (
+                      <>
+                        {"  ·  "}
+                        <span
+                          className="font-medium"
+                          style={{ color: statusColors.late }}
+                        >
+                          {selectedStats.halfDayCount} Half-day
+                        </span>
+                      </>
+                    )}
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground/70 mt-1">
+                    No attendance data for this day
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Selected date detail */}
-          {selectedDate && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100 px-4 py-3">
-              <p className="text-sm font-semibold text-gray-800">
-                {format(selectedDate, "EEEE, dd MMMM yyyy")}
-              </p>
-              {selectedHoliday ? (
-                <p className="text-sm text-instattend-600 mt-1">
-                  {selectedHoliday.name}
-                </p>
-              ) : selectedDate.getDay() === 0 ? (
-                <p className="text-sm text-gray-500 mt-1">Sunday</p>
-              ) : selectedStats ? (
-                <p className="text-sm text-gray-600 mt-1">
-                  <span className="text-green-600 font-medium">
-                    {selectedStats.presentCount} Present
-                  </span>
-                  {"  ·  "}
-                  <span className="text-red-500 font-medium">
-                    {selectedStats.absentCount} Absent
-                  </span>
-                  {selectedStats.halfDayCount > 0 && (
-                    <>
-                      {"  ·  "}
-                      <span className="text-amber-600 font-medium">
-                        {selectedStats.halfDayCount} Half-day
-                      </span>
-                    </>
-                  )}
-                </p>
-              ) : (
-                <p className="text-sm text-gray-400 mt-1">
-                  No attendance data for this day
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Upcoming holidays panel */}
-        <div>
-          <Card className="border-none shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <PartyPopper className="h-4 w-4 text-instattend-500" />
-                Upcoming Holidays
-              </CardTitle>
-              <CardDescription>Next holidays from today</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {upcomingHolidays.length === 0 ? (
-                <div className="flex flex-col items-center text-center py-8 text-gray-400">
-                  <CalendarDays className="h-8 w-8 mb-2" />
-                  <p className="text-sm">No upcoming holidays found</p>
-                </div>
-              ) : (
-                upcomingHolidays.map((h) => (
-                  <div
-                    key={h.date}
-                    className="flex items-center justify-between gap-3 border-b border-gray-100 last:border-b-0 pb-3 last:pb-0"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">
-                        {h.name}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {format(new Date(h.date), "EEEE, dd MMM yyyy")}
-                      </p>
-                    </div>
-                    <span
-                      className={`text-[10px] font-semibold px-2 py-1 rounded-full whitespace-nowrap ${
-                        h.type === "optional"
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-instattend-100 text-instattend-700"
-                      }`}
-                    >
-                      {h.type === "optional" ? "Optional" : "National"}
-                    </span>
+          {/* Upcoming holidays panel */}
+          <div>
+            <Card className="border border-border shadow-soft bg-white">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base text-foreground">
+                  <PartyPopper className="h-4 w-4 text-primary" />
+                  Upcoming Holidays
+                </CardTitle>
+                <CardDescription>Next holidays from today</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {upcomingHolidays.length === 0 ? (
+                  <div className="flex flex-col items-center text-center py-8 text-muted-foreground">
+                    <CalendarDays className="h-8 w-8 mb-2 opacity-50" />
+                    <p className="text-sm">No upcoming holidays found</p>
                   </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+                ) : (
+                  upcomingHolidays.map((h) => (
+                    <div
+                      key={h.date}
+                      className="flex items-center justify-between gap-3 border-b border-border last:border-b-0 pb-3 last:pb-0"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-foreground">
+                          {h.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(h.date), "EEEE, dd MMM yyyy")}
+                        </p>
+                      </div>
+                      <span
+                        className="text-[10px] font-semibold px-2 py-1 rounded-full whitespace-nowrap"
+                        style={
+                          h.type === "optional"
+                            ? {
+                                backgroundColor: hexToRgba(
+                                  statusColors.late,
+                                  0.15,
+                                ),
+                                color: statusColors.late,
+                              }
+                            : {
+                                backgroundColor: hexToRgba(
+                                  colors.primary.DEFAULT,
+                                  0.12,
+                                ),
+                                color: colors.primary.dark,
+                              }
+                        }
+                      >
+                        {h.type === "optional" ? "Optional" : "National"}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </MainLayout>

@@ -47,7 +47,10 @@ const Index = () => {
       const todayStats = dailyStats[dailyStats.length - 1] || {};
 
       const totalEmployees = data.totalEmployees || 0;
-      const lateToday = todayStats.late ?? 0;
+      // "Half Day" replaces the old "Late" summary tile. The daily-stats
+      // payload doesn't guarantee a halfDay/half_day field yet, so this
+      // falls back to 0 instead of fabricating a number.
+      const halfDayToday = todayStats.halfDay ?? todayStats.half_day ?? 0;
       const absentToday = todayStats.absent ?? 0;
 
       setStat({
@@ -58,11 +61,11 @@ const Index = () => {
         presentPercentage: parsePercent(data.presentPercentage),
         leavePercentage: parsePercent(data.leavePercentage),
         workingHoursChange: data.workingHoursChange || "",
-        lateToday,
+        halfDayToday,
         absentToday,
-        latePercentage:
+        halfDayPercentage:
           totalEmployees > 0
-            ? Math.round((lateToday / totalEmployees) * 100)
+            ? Math.round((halfDayToday / totalEmployees) * 100)
             : 0,
         absentPercentage:
           totalEmployees > 0
@@ -114,11 +117,7 @@ const Index = () => {
                     <CardTitle className="text-base md:text-lg font-semibold text-text-primary/90">
                       Today's Attendance Status
                     </CardTitle>
-                    <CardDescription className="text-text-muted">
-                      {stat.avgWorkingHours
-                        ? `Avg. working hours: ${stat.avgWorkingHours} hrs ${stat.workingHoursChange || ""}`
-                        : "Live breakdown across the team"}
-                    </CardDescription>
+                    
                   </div>
                   <div className="text-sm text-text-muted px-3 py-1.5 rounded-full border border-white/60 bg-white/30">
                     <span className="font-semibold text-text-primary tabular-nums">
@@ -137,10 +136,10 @@ const Index = () => {
                         value: stat.presentToday,
                       },
                       {
-                        percentage: stat.latePercentage,
-                        color: statusColors.late,
-                        label: "Late",
-                        value: stat.lateToday,
+                        percentage: stat.halfDayPercentage,
+                        color: statusColors.halfDay,
+                        label: "Half Day",
+                        value: stat.halfDayToday,
                       },
                       {
                         percentage: stat.absentPercentage,

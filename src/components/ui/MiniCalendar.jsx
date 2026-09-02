@@ -29,6 +29,12 @@ const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
  * "blurry" — combined with the global font-smoothing fix in theme.css,
  * this renders crisp on standard-DPI displays.
  *
+ * Header ("September 2026") and the "Today" jump-button were further
+ * tightened for legibility: larger, heavier type with a touch of
+ * letter-spacing on the month/year label so it reads as a proper title
+ * rather than a caption, and a solid pill treatment on "Today" so it
+ * reads as a distinct, tappable control rather than plain text.
+ *
  * Wired to GET /dashboard/attendance-calendar (via dashboardService).
  */
 const MiniCalendar = () => {
@@ -90,7 +96,10 @@ const MiniCalendar = () => {
     <div>
       <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/60">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-extrabold tracking-wide text-primary uppercase">
+          {/* Month/year title — bumped from text-xs/font-extrabold to
+              text-sm/font-bold with tracking-wider so it reads as a
+              heading rather than a small caption label. */}
+          <span className="text-sm font-bold tracking-wider text-primary uppercase">
             {format(currentMonth, "MMMM yyyy")}
           </span>
           {isLoading && (
@@ -106,9 +115,13 @@ const MiniCalendar = () => {
           >
             <ChevronLeft className="h-3.5 w-3.5" />
           </button>
+          {/* "Today" — given a solid pill treatment (soft filled
+              background + border) instead of transparent text, with
+              larger/bolder type so it reads as a real button rather than
+              a stray word next to the arrows. */}
           <button
             onClick={() => setCurrentMonth(new Date())}
-            className="px-1.5 py-0.5 rounded border border-transparent hover:border-border text-[10px] font-bold text-primary hover:bg-primary/10 transition-colors"
+            className="px-2 py-1 rounded-full border border-primary/30 bg-primary/10 text-[11px] font-bold uppercase tracking-wide text-primary hover:bg-primary/20 hover:border-primary/50 transition-colors"
             type="button"
           >
             Today

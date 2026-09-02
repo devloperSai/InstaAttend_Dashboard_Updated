@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+// src/pages/Expense.jsx
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import MainLayout from "../components/layout/MainLayout";
 import { Button } from "../components/ui/button";
 import {
@@ -9,6 +10,7 @@ import {
   X as XIcon,
   Paperclip,
   ExternalLink,
+  RefreshCw,
 } from "lucide-react";
 import {
   Card,
@@ -44,6 +46,22 @@ const STATUS_BADGE_STYLES = {
   Rejected: "bg-red-100 text-red-800 border-red-200",
 };
 
+// The mobile app and the admin panel don't always agree on casing/
+// whitespace for expense_status ("pending" vs "Pending" vs " Pending ").
+// Previously the tab filter did a strict `===` match against the raw
+// backend value, so anything that didn't match EXACTLY (e.g. lowercase
+// from mobile) was fetched successfully but silently excluded from every
+// tab — it looked like the expense "never arrived" even though it was
+// sitting in `expenses` state the whole time. This normalizer makes
+// status comparisons resilient to that, and anything unrecognized falls
+// back to "Pending" so it's never invisible.
+const normalizeStatus = (status) => {
+  const s = String(status ?? "").trim().toLowerCase();
+  if (s === "approved") return "Approved";
+  if (s === "rejected") return "Rejected";
+  return "Pending";
+};
+
 const safeFormatDate = (dateVal) => {
   if (!dateVal) return "N/A";
   try {
@@ -55,15 +73,25 @@ const safeFormatDate = (dateVal) => {
   }
 };
 
+// Auto-refresh interval (ms) so expenses submitted from the mobile app
+// show up on the dashboard without the admin needing to reload the page.
+const AUTO_REFRESH_MS = 20000;
+
 const Expense = () => {
   const [expenses, setExpenses] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("Pending");
   const [updatingId, setUpdatingId] = useState(null);
+  const pollRef = useRef(null);
 
-  const fetchExpenses = useCallback(async () => {
-    setIsLoading(true);
+  const fetchExpenses = useCallback(async (silent = false) => {
+    if (silent) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
     try {
       const data = await expenseService.getAll();
       setExpenses(Array.isArray(data) ? data : []);
@@ -71,6 +99,7 @@ const Expense = () => {
       console.error("Failed to fetch expenses", e);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -86,6 +115,11 @@ const Expense = () => {
   useEffect(() => {
     fetchExpenses();
     fetchEmployees();
+
+    // Light polling so expenses submitted from the mobile app while this
+    // page is open get picked up automatically.
+    pollRef.current = setInterval(() => fetchExpenses(true), AUTO_REFRESH_MS);
+    return () => clearInterval(pollRef.current);
   }, [fetchExpenses, fetchEmployees]);
 
   // Map expense_by (UUID) -> employee display name
@@ -97,22 +131,33 @@ const Expense = () => {
     return map;
   }, [employees]);
 
+  // Pre-compute the normalized status once per expense so every consumer
+  // (tabs, totals, badges) agrees on the same bucket.
+  const normalizedExpenses = useMemo(
+    () =>
+      expenses.map((e) => ({
+        ...e,
+        _normalizedStatus: normalizeStatus(e.expense_status),
+      })),
+    [expenses],
+  );
+
   const totals = useMemo(() => {
-    const total = expenses.reduce(
+    const total = normalizedExpenses.reduce(
       (sum, e) => sum + Number(e.expense_amount || 0),
       0,
     );
-    const review = expenses
-      .filter((e) => e.expense_status === "Pending")
+    const review = normalizedExpenses
+      .filter((e) => e._normalizedStatus === "Pending")
       .reduce((sum, e) => sum + Number(e.expense_amount || 0), 0);
-    const approved = expenses
-      .filter((e) => e.expense_status === "Approved")
+    const approved = normalizedExpenses
+      .filter((e) => e._normalizedStatus === "Approved")
       .reduce((sum, e) => sum + Number(e.expense_amount || 0), 0);
     return { total, review, approved };
-  }, [expenses]);
+  }, [normalizedExpenses]);
 
-  const filteredExpenses = expenses.filter(
-    (e) => e.expense_status === activeTab,
+  const filteredExpenses = normalizedExpenses.filter(
+    (e) => e._normalizedStatus === activeTab,
   );
 
   const handleStatusChange = async (expense, newStatus) => {
@@ -142,7 +187,7 @@ const Expense = () => {
       e.expense_type,
       e.expense_date,
       e.expense_amount,
-      e.expense_status,
+      e._normalizedStatus,
     ]);
     const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -224,6 +269,18 @@ const Expense = () => {
             </button>
           ))}
         </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fetchExpenses(true)}
+          disabled={isRefreshing}
+        >
+          <RefreshCw
+            className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
+          />
+          {isRefreshing ? "Refreshing..." : "Refresh"}
+        </Button>
       </div>
 
       <Card className="border-none shadow-sm">
@@ -306,10 +363,10 @@ const Expense = () => {
                       <TableCell>
                         <Badge
                           className={
-                            STATUS_BADGE_STYLES[expense.expense_status]
+                            STATUS_BADGE_STYLES[expense._normalizedStatus]
                           }
                         >
-                          {expense.expense_status}
+                          {expense._normalizedStatus}
                         </Badge>
                       </TableCell>
                       {activeTab === "Pending" && (

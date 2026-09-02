@@ -53,6 +53,7 @@ export const colors = {
     leave: "#8B5CF6", // hsl(258 90% 66%) - purple
     holiday: "#0EA5E9", // hsl(199 89% 48%) - blue
     pending: "#64748B", // hsl(215 16% 47%) - slate (intentionally muted)
+    halfDay: "#60A5FA", // blue-400 - matches the "Half Day" dot used in RecentActivityCard
   },
 
   /* Borders & Rings */
@@ -140,6 +141,7 @@ export const statusColors = {
   leave: colors.status.leave,
   holiday: colors.status.holiday,
   pending: colors.status.pending,
+  halfDay: colors.status.halfDay,
 };
 
 export const hslToRgb = (h, s, l) => {
