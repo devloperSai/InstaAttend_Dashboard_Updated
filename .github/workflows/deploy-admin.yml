@@ -1,4 +1,4 @@
-name: Deploy admin frontend
+name: Deploy admin frontend to AWS
 
 on:
   push:
