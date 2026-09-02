@@ -1,37 +1,89 @@
-name: Deploy React App to EC2
+name: Deploy admin frontend
 
 on:
   push:
     branches:
-      - main  # or your deployment branch
+      - main
+      - test
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: admin-frontend-${{ github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
-  deploy:
+  deploy-test:
+    if: github.ref_name == 'test'
     runs-on: ubuntu-latest
-
+    environment: test
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout source
+        uses: actions/checkout@v4
 
-    - name: Install dependencies and build
-      run: |
-        npm ci
-        npm run build
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
 
-    - name: Deploy via SSH
-      uses: appleboy/scp-action@v0.1.7
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USERNAME }}
-        key: ${{ secrets.EC2_KEY }}
-        source: "dist/*"
-        target: "/home/ubuntu"
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Restart NGINX (if needed)
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USERNAME }}
-        key: ${{ secrets.EC2_KEY }}
-        script: |
-          sudo systemctl restart nginx
+      - name: Build test environment
+        run: npm run build:test
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Replace test bucket contents
+        run: aws s3 sync dist/test/ s3://insta-attend-admin-test/ --delete --only-show-errors
+
+      - name: Invalidate test CloudFront cache
+        if: vars.CLOUDFRONT_DISTRIBUTION_ID != ''
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/*"
+
+  deploy-production:
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production environment
+        run: npm run build:prod
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Replace production bucket contents
+        run: aws s3 sync dist/prod/ s3://insta-attend-admin-prod/ --delete --only-show-errors
+
+      - name: Invalidate production CloudFront cache
+        if: vars.CLOUDFRONT_DISTRIBUTION_ID != ''
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/*"
