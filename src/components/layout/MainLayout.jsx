@@ -1,10 +1,8 @@
 import { useState } from "react";
 import Sidebar from "./Sidebar";
-import Header from "./Header";
+import ProfileMenu from "./ProfileMenu";
 
 const MainLayout = ({ children }) => {
-
-
   const [collapsed, setCollapsed] = useState(false);
 
   const toggleSidebar = () => {
@@ -15,8 +13,14 @@ const MainLayout = ({ children }) => {
     <div className="flex h-screen bg-background">
       <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
-        <main key={collapsed ? "c" : "e"} className="flex-1 overflow-y-auto p-6 animate-fade-in">
+        <main
+          key={collapsed ? "c" : "e"}
+          className="flex-1 overflow-y-auto animate-fade-in"
+        >
+          {/* No header bar — just the capsule, floating, no border/bg */}
+          <div className="flex justify-end px-4 md:px-6 pt-4 pb-2">
+            <ProfileMenu />
+          </div>
           {children}
         </main>
       </div>

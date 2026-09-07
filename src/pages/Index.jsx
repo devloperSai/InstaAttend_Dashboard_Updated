@@ -25,9 +25,6 @@ import MiniCalendar from "../components/ui/MiniCalendar.jsx";
 import CircularStat from "../components/ui/CircularStat.jsx";
 import NotificationsCard from "../components/ui/NotificationsCard.jsx";
 
-// dashboard.service.js returns presentPercentage/leavePercentage as
-// display-ready strings (e.g. "90.3%"). We need the raw number to drive
-// the CircularStat conic-gradient rings, so this strips it back out.
 const parsePercent = (value) => {
   if (value === undefined || value === null) return 0;
   const n = parseFloat(String(value).replace("%", "").trim());
@@ -47,9 +44,6 @@ const Index = () => {
       const todayStats = dailyStats[dailyStats.length - 1] || {};
 
       const totalEmployees = data.totalEmployees || 0;
-      // "Half Day" replaces the old "Late" summary tile. The daily-stats
-      // payload doesn't guarantee a halfDay/half_day field yet, so this
-      // falls back to 0 instead of fabricating a number.
       const halfDayToday = todayStats.halfDay ?? todayStats.half_day ?? 0;
       const absentToday = todayStats.absent ?? 0;
 
@@ -90,10 +84,12 @@ const Index = () => {
   return (
     <MainLayout>
       {isLoading ? (
-        <DashboardSkeleton />
+        <div className="p-4 md:p-6">
+          <DashboardSkeleton />
+        </div>
       ) : (
         <div
-          className="-m-6 min-h-[calc(100vh-4rem)] p-4 md:p-6"
+          className="min-h-[calc(100vh-4.5rem)] p-4 md:p-6 pt-2"
           style={{ backgroundColor: "hsl(var(--dashboard-bg))" }}
         >
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
@@ -105,7 +101,8 @@ const Index = () => {
                     Dashboard
                   </h1>
                   <p className="text-text-muted">
-                    Your attendance overview, all in one place
+                    Welcome back, {username} — your attendance overview, all in
+                    one place
                   </p>
                 </div>
               </div>
@@ -117,7 +114,6 @@ const Index = () => {
                     <CardTitle className="text-base md:text-lg font-semibold text-text-primary/90">
                       Today's Attendance Status
                     </CardTitle>
-                    
                   </div>
                   <div className="text-sm text-text-muted px-3 py-1.5 rounded-full border border-white/60 bg-white/30">
                     <span className="font-semibold text-text-primary tabular-nums">
@@ -154,11 +150,6 @@ const Index = () => {
                         value: stat.onLeave,
                       },
                     ].map((s) => (
-                      // Status-tinted tile — original single-div structure
-                      // kept intact (border + inline bg/border color), just
-                      // with brighter opacity values (0.08→0.14, 0.25→0.45)
-                      // so the color-coding reads clearly against the light
-                      // mint dashboard background.
                       <div
                         key={s.label}
                         className="flex w-full justify-center p-3 rounded-xl border shadow-sm transition-all duration-300 ease-smooth hover:-translate-y-0.5"
@@ -179,10 +170,7 @@ const Index = () => {
                 </CardContent>
               </Card>
 
-              {/* Weekly Trends — redesigned for a cleaner, more premium look:
-                  gradient-filled bars instead of flat color, no nested
-                  translucent boxes, borderless axes, and a compact
-                  top-right legend (standard SaaS-dashboard convention). */}
+              {/* Weekly Trends */}
               <Card className="glass-panel border border-white/60">
                 <CardHeader className="relative border-b border-white/50 pb-4">
                   <CardTitle className="text-base md:text-lg font-semibold text-text-primary/90">
@@ -346,14 +334,9 @@ const Index = () => {
               </Card>
             </div>
 
-            {/* ---- Right rail: today pill + live calendar + notifications ---- */}
+            {/* ---- Right rail ---- */}
             <div className="space-y-4 md:space-y-6">
               <div className="flex justify-center lg:justify-end">
-                {/* Removed backdrop-blur-sm here — this pill sits directly
-                    on the dashboard background (not inside a glass-panel),
-                    so the extra blur layer was only adding to the text
-                    softness. A slightly higher solid opacity keeps the
-                    frosted look without sacrificing text crispness. */}
                 <div className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/75 text-primary border border-white/90 shadow-sm">
                   <span className="text-sm font-medium">
                     Today:{" "}

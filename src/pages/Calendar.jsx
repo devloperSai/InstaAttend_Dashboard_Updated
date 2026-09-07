@@ -25,7 +25,7 @@ import {
 } from "date-fns";
 import { getHolidays } from "../data/holidays";
 import { dashboardService } from "../api/services/dashboard.service.js";
-import { statusColors, hexToRgba, colors } from "../lib/theme.js";
+import { statusColors, hexToRgba } from "../lib/theme.js";
 
 const Calendar = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -102,99 +102,95 @@ const Calendar = () => {
     return attendanceMap.get(key) || null;
   }, [selectedDate, attendanceMap]);
 
-  // Simple month snapshot from the live payload
-  const monthSnapshot = useMemo(() => {
-    if (!calendarData?.records?.length) return null;
-    const totalPresent = calendarData.records.reduce(
-      (sum, r) => sum + (r.presentCount || 0),
-      0,
-    );
-    const totalAbsent = calendarData.records.reduce(
-      (sum, r) => sum + (r.absentCount || 0),
-      0,
-    );
-    const avgPresent = Math.round(totalPresent / calendarData.records.length);
-    return {
-      totalEmployees: calendarData.totalEmployees ?? 0,
-      avgPresent,
-      totalAbsent,
-    };
-  }, [calendarData]);
-
-  // Snapshot tile config — colors pulled from the shared theme so this
-  // matches the dashboard's status palette instead of one-off hex values.
-  const snapshotTiles = monthSnapshot
-    ? [
-        {
-          key: "total",
-          label: "Total Employees",
-          value: monthSnapshot.totalEmployees,
-          icon: Users,
-          color: colors.primary.DEFAULT,
-        },
-        {
-          key: "present",
-          label: "Avg. Present / Day",
-          value: monthSnapshot.avgPresent,
-          icon: UserCheck,
-          color: statusColors.present,
-        },
-        {
-          key: "absent",
-          label: "Total Absences (Month)",
-          value: monthSnapshot.totalAbsent,
-          icon: UserX,
-          color: statusColors.absent,
-        },
-      ]
-    : [];
+  // The day the stat cards reflect: whatever's selected on the calendar,
+  // defaulting to today when nothing is picked yet. This is what makes the
+  // cards "day-wise" — they read straight from attendanceMap (already
+  // fetched per-date from the attendance-calendar API) keyed by this date.
+  const activeDate = selectedDate || new Date();
+  const activeDateKey = format(activeDate, "yyyy-MM-dd");
+  const activeIsToday = isSameDay(activeDate, new Date());
+  const activeStats = attendanceMap.get(activeDateKey) || null;
+  const activeDayLabel = activeIsToday ? "Today" : format(activeDate, "d MMM");
 
   return (
     <MainLayout>
-      {/* Flat white page background — cards/components carry all the
-          color, matching how Index.jsx keeps its background separate
-          from the glass/surface cards on top of it. */}
-      <div className="-m-6 min-h-[calc(100vh-4rem)] bg-white p-4 md:p-6">
+      <div
+        className="-m-6 min-h-[calc(100vh-4rem)] p-4 md:p-6"
+        style={{ backgroundColor: "hsl(var(--dashboard-bg))" }}
+      >
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
               Calendar
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-gray-500 mt-1">
               Sundays, national holidays and live attendance at a glance
             </p>
           </div>
         </div>
 
-        {/* Live month snapshot from the admin attendance-calendar API */}
-        {snapshotTiles.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            {snapshotTiles.map((tile) => (
+        {/* Live day-wise snapshot — reflects whichever date is selected on
+            the calendar below, defaulting to today. */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <Card className="glass-panel border border-white/60">
+            <CardContent className="p-4 flex items-center gap-3">
               <div
-                key={tile.key}
-                className="rounded-xl border border-border bg-white p-4 flex items-center gap-3 shadow-soft transition-all duration-300 ease-smooth hover:-translate-y-0.5"
+                className="p-2.5 rounded-full text-white flex-shrink-0"
+                style={{ backgroundColor: statusColors.holiday }}
               >
-                <div
-                  className="p-2.5 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{
-                    backgroundColor: hexToRgba(tile.color, 0.14),
-                    color: tile.color,
-                  }}
-                >
-                  <tile.icon className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">
-                    {tile.label}
-                  </p>
-                  <p className="text-lg font-bold text-foreground tabular-nums">
-                    {tile.value}
-                  </p>
-                </div>
+                <Users className="h-4 w-4" />
               </div>
-            ))}
-          </div>
-        )}
+              <div>
+                <p className="text-xs text-gray-500">Total Employees</p>
+                <p className="text-lg font-bold text-gray-800">
+                  {calendarData?.totalEmployees ?? 0}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="glass-panel border"
+            style={{ borderColor: hexToRgba(statusColors.present, 0.35) }}
+          >
+            <CardContent className="p-4 flex items-center gap-3">
+              <div
+                className="p-2.5 rounded-full text-white flex-shrink-0"
+                style={{ backgroundColor: statusColors.present }}
+              >
+                <UserCheck className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">
+                  Present {activeDayLabel}
+                </p>
+                <p className="text-lg font-bold text-gray-800">
+                  {activeStats ? activeStats.presentCount : 0}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="glass-panel border"
+            style={{ borderColor: hexToRgba(statusColors.absent, 0.35) }}
+          >
+            <CardContent className="p-4 flex items-center gap-3">
+              <div
+                className="p-2.5 rounded-full text-white flex-shrink-0"
+                style={{ backgroundColor: statusColors.absent }}
+              >
+                <UserX className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Absent {activeDayLabel}</p>
+                <p className="text-lg font-bold text-gray-800">
+                  {activeStats ? activeStats.absentCount : 0}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main calendar */}
@@ -210,49 +206,39 @@ const Calendar = () => {
             />
 
             {/* Legend */}
-            <div className="flex flex-wrap items-center gap-4 sm:gap-6 bg-white rounded-lg border border-border px-4 py-3 shadow-soft">
+            <div className="flex flex-wrap items-center gap-4 sm:gap-6 glass-panel border border-white/60 px-4 py-3">
               <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-muted border border-border" />
-                <span className="text-xs text-muted-foreground">Sunday</span>
+                <span className="h-3 w-3 rounded-full bg-gray-200 border border-gray-300" />
+                <span className="text-xs text-gray-600">Sunday</span>
               </div>
               <div className="flex items-center gap-2">
-                <span
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: colors.primary.DEFAULT }}
-                />
-                <span className="text-xs text-muted-foreground">
-                  National Holiday
-                </span>
+                <span className="h-2.5 w-2.5 rounded-full bg-instattend-500" />
+                <span className="text-xs text-gray-600">National Holiday</span>
               </div>
               <div className="flex items-center gap-2">
-                <span
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: statusColors.late }}
-                />
-                <span className="text-xs text-muted-foreground">
-                  Optional Holiday
-                </span>
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+                <span className="text-xs text-gray-600">Optional Holiday</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="h-5 w-5 rounded-full bg-primary flex items-center justify-center text-[10px] text-primary-foreground font-semibold">
+                <span className="h-5 w-5 rounded-full bg-instattend-500 flex items-center justify-center text-[10px] text-white font-semibold">
                   {format(new Date(), "d")}
                 </span>
-                <span className="text-xs text-muted-foreground">Today</span>
+                <span className="text-xs text-gray-600">Today</span>
               </div>
               <div className="flex items-center gap-2">
                 <span
-                  className="text-[10px] font-semibold"
+                  className="text-[10px] font-medium"
                   style={{ color: statusColors.present }}
                 >
-                  42P
+                  P
                 </span>
                 <span
-                  className="text-[10px] font-semibold"
+                  className="text-[10px] font-medium"
                   style={{ color: statusColors.absent }}
                 >
-                  6A
+                  A
                 </span>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-gray-600">
                   Present / Absent (live)
                 </span>
               </div>
@@ -260,18 +246,18 @@ const Calendar = () => {
 
             {/* Selected date detail */}
             {selectedDate && (
-              <div className="bg-white rounded-lg border border-border px-4 py-3 shadow-soft">
-                <p className="text-sm font-semibold text-foreground">
+              <div className="glass-panel border border-white/60 px-4 py-3">
+                <p className="text-sm font-semibold text-gray-800">
                   {format(selectedDate, "EEEE, dd MMMM yyyy")}
                 </p>
                 {selectedHoliday ? (
-                  <p className="text-sm text-primary mt-1">
+                  <p className="text-sm text-instattend-600 mt-1">
                     {selectedHoliday.name}
                   </p>
                 ) : selectedDate.getDay() === 0 ? (
-                  <p className="text-sm text-muted-foreground mt-1">Sunday</p>
+                  <p className="text-sm text-gray-500 mt-1">Sunday</p>
                 ) : selectedStats ? (
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-sm text-gray-600 mt-1">
                     <span
                       className="font-medium"
                       style={{ color: statusColors.present }}
@@ -298,7 +284,7 @@ const Calendar = () => {
                     )}
                   </p>
                 ) : (
-                  <p className="text-sm text-muted-foreground/70 mt-1">
+                  <p className="text-sm text-gray-400 mt-1">
                     No attendance data for this day
                   </p>
                 )}
@@ -308,53 +294,40 @@ const Calendar = () => {
 
           {/* Upcoming holidays panel */}
           <div>
-            <Card className="border border-border shadow-soft bg-white">
+            <Card className="glass-panel border border-white/60">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base text-foreground">
-                  <PartyPopper className="h-4 w-4 text-primary" />
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <PartyPopper className="h-4 w-4 text-instattend-500" />
                   Upcoming Holidays
                 </CardTitle>
                 <CardDescription>Next holidays from today</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 {upcomingHolidays.length === 0 ? (
-                  <div className="flex flex-col items-center text-center py-8 text-muted-foreground">
-                    <CalendarDays className="h-8 w-8 mb-2 opacity-50" />
+                  <div className="flex flex-col items-center text-center py-8 text-gray-400">
+                    <CalendarDays className="h-8 w-8 mb-2" />
                     <p className="text-sm">No upcoming holidays found</p>
                   </div>
                 ) : (
                   upcomingHolidays.map((h) => (
                     <div
                       key={h.date}
-                      className="flex items-center justify-between gap-3 border-b border-border last:border-b-0 pb-3 last:pb-0"
+                      className="flex items-center justify-between gap-3 border-b border-white/50 last:border-b-0 pb-3 last:pb-0"
                     >
                       <div>
-                        <p className="text-sm font-medium text-foreground">
+                        <p className="text-sm font-medium text-gray-800">
                           {h.name}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-gray-500">
                           {format(new Date(h.date), "EEEE, dd MMM yyyy")}
                         </p>
                       </div>
                       <span
-                        className="text-[10px] font-semibold px-2 py-1 rounded-full whitespace-nowrap"
-                        style={
+                        className={`text-[10px] font-semibold px-2 py-1 rounded-full whitespace-nowrap ${
                           h.type === "optional"
-                            ? {
-                                backgroundColor: hexToRgba(
-                                  statusColors.late,
-                                  0.15,
-                                ),
-                                color: statusColors.late,
-                              }
-                            : {
-                                backgroundColor: hexToRgba(
-                                  colors.primary.DEFAULT,
-                                  0.12,
-                                ),
-                                color: colors.primary.dark,
-                              }
-                        }
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-instattend-100 text-instattend-700"
+                        }`}
                       >
                         {h.type === "optional" ? "Optional" : "National"}
                       </span>

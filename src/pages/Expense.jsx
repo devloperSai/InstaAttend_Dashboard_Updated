@@ -1,4 +1,3 @@
-// src/pages/Expense.jsx
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import MainLayout from "../components/layout/MainLayout";
 import { Button } from "../components/ui/button";
@@ -10,7 +9,6 @@ import {
   X as XIcon,
   Paperclip,
   ExternalLink,
-  RefreshCw,
 } from "lucide-react";
 import {
   Card,
@@ -30,6 +28,8 @@ import {
 } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
 import { toast } from "sonner";
+import Papa from "papaparse";
+import * as XLSX from "xlsx";
 import { expenseService } from "../api/services/expense.service.js";
 import { employeeService } from "../api/services/employee.service.js";
 
@@ -46,22 +46,6 @@ const STATUS_BADGE_STYLES = {
   Rejected: "bg-red-100 text-red-800 border-red-200",
 };
 
-// The mobile app and the admin panel don't always agree on casing/
-// whitespace for expense_status ("pending" vs "Pending" vs " Pending ").
-// Previously the tab filter did a strict `===` match against the raw
-// backend value, so anything that didn't match EXACTLY (e.g. lowercase
-// from mobile) was fetched successfully but silently excluded from every
-// tab — it looked like the expense "never arrived" even though it was
-// sitting in `expenses` state the whole time. This normalizer makes
-// status comparisons resilient to that, and anything unrecognized falls
-// back to "Pending" so it's never invisible.
-const normalizeStatus = (status) => {
-  const s = String(status ?? "").trim().toLowerCase();
-  if (s === "approved") return "Approved";
-  if (s === "rejected") return "Rejected";
-  return "Pending";
-};
-
 const safeFormatDate = (dateVal) => {
   if (!dateVal) return "N/A";
   try {
@@ -73,33 +57,26 @@ const safeFormatDate = (dateVal) => {
   }
 };
 
-// Auto-refresh interval (ms) so expenses submitted from the mobile app
-// show up on the dashboard without the admin needing to reload the page.
-const AUTO_REFRESH_MS = 20000;
-
 const Expense = () => {
   const [expenses, setExpenses] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("Pending");
   const [updatingId, setUpdatingId] = useState(null);
-  const pollRef = useRef(null);
+  const [showExportOptions, setShowExportOptions] = useState(false);
 
-  const fetchExpenses = useCallback(async (silent = false) => {
-    if (silent) {
-      setIsRefreshing(true);
-    } else {
-      setIsLoading(true);
-    }
+  const exportRef = useRef();
+
+  const fetchExpenses = useCallback(async () => {
+    setIsLoading(true);
     try {
       const data = await expenseService.getAll();
       setExpenses(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error("Failed to fetch expenses", e);
+      setExpenses([]);
     } finally {
       setIsLoading(false);
-      setIsRefreshing(false);
     }
   }, []);
 
@@ -115,14 +92,22 @@ const Expense = () => {
   useEffect(() => {
     fetchExpenses();
     fetchEmployees();
-
-    // Light polling so expenses submitted from the mobile app while this
-    // page is open get picked up automatically.
-    pollRef.current = setInterval(() => fetchExpenses(true), AUTO_REFRESH_MS);
-    return () => clearInterval(pollRef.current);
   }, [fetchExpenses, fetchEmployees]);
 
-  // Map expense_by (UUID) -> employee display name
+  // Close the export dropdown when clicking outside it
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (exportRef.current && !exportRef.current.contains(e.target)) {
+        setShowExportOptions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Map expense_by (UUID) -> employee display name.
+  // Fallback lookup only — the API now embeds `expenseBy.username` directly
+  // on each expense record, which is used first below.
   const employeeNameMap = useMemo(() => {
     const map = {};
     employees.forEach((emp) => {
@@ -131,33 +116,35 @@ const Expense = () => {
     return map;
   }, [employees]);
 
-  // Pre-compute the normalized status once per expense so every consumer
-  // (tabs, totals, badges) agrees on the same bucket.
-  const normalizedExpenses = useMemo(
-    () =>
-      expenses.map((e) => ({
-        ...e,
-        _normalizedStatus: normalizeStatus(e.expense_status),
-      })),
-    [expenses],
+  const getEmployeeName = useCallback(
+    (expense) =>
+      expense.expenseBy?.username ||
+      employeeNameMap[expense.expense_by] ||
+      "Unknown",
+    [employeeNameMap],
+  );
+
+  const getEmployeeEmail = useCallback(
+    (expense) => expense.expenseBy?.email || "N/A",
+    [],
   );
 
   const totals = useMemo(() => {
-    const total = normalizedExpenses.reduce(
+    const total = expenses.reduce(
       (sum, e) => sum + Number(e.expense_amount || 0),
       0,
     );
-    const review = normalizedExpenses
-      .filter((e) => e._normalizedStatus === "Pending")
+    const review = expenses
+      .filter((e) => e.expense_status === "Pending")
       .reduce((sum, e) => sum + Number(e.expense_amount || 0), 0);
-    const approved = normalizedExpenses
-      .filter((e) => e._normalizedStatus === "Approved")
+    const approved = expenses
+      .filter((e) => e.expense_status === "Approved")
       .reduce((sum, e) => sum + Number(e.expense_amount || 0), 0);
     return { total, review, approved };
-  }, [normalizedExpenses]);
+  }, [expenses]);
 
-  const filteredExpenses = normalizedExpenses.filter(
-    (e) => e._normalizedStatus === activeTab,
+  const filteredExpenses = expenses.filter(
+    (e) => e.expense_status === activeTab,
   );
 
   const handleStatusChange = async (expense, newStatus) => {
@@ -175,28 +162,100 @@ const Expense = () => {
     }
   };
 
-  const exportExpenseReport = () => {
+  // ---- Export helpers (shared row-building for both formats) ----
+  const buildExportRows = useCallback(() => {
+    return filteredExpenses.map((e) => ({
+      Employee: getEmployeeName(e),
+      Email: getEmployeeEmail(e),
+      Category: e.expense_type,
+      Date: e.expense_date
+        ? format(new Date(e.expense_date), "yyyy-MM-dd")
+        : "N/A",
+      "Amount (₹)": Number(e.expense_amount || 0),
+      Status: e.expense_status,
+      "Receipt URL": e.receipt_url || "N/A",
+      "Submitted On": e.createdAt
+        ? format(new Date(e.createdAt), "yyyy-MM-dd HH:mm")
+        : "N/A",
+    }));
+  }, [filteredExpenses, getEmployeeName, getEmployeeEmail]);
+
+  const buildExportFileName = useCallback(
+    (ext) =>
+      `expenses-${activeTab.toLowerCase()}-${format(new Date(), "yyyy-MM-dd")}.${ext}`,
+    [activeTab],
+  );
+
+  const handleExportCSV = useCallback(() => {
+    if (filteredExpenses.length === 0) {
+      toast.error("No expenses to export in this view");
+      return;
+    }
+    const rows = buildExportRows();
+    const csv = Papa.unparse(rows);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = buildExportFileName("csv");
+    link.click();
+    toast.success("Exported as CSV");
+    setShowExportOptions(false);
+  }, [filteredExpenses, buildExportRows, buildExportFileName]);
+
+  const handleExportExcel = useCallback(() => {
     if (filteredExpenses.length === 0) {
       toast.error("No expenses to export in this view");
       return;
     }
 
-    const headers = ["Employee", "Category", "Date", "Amount", "Status"];
-    const rows = filteredExpenses.map((e) => [
-      employeeNameMap[e.expense_by] || "Unknown",
-      e.expense_type,
-      e.expense_date,
-      e.expense_amount,
-      e._normalizedStatus,
-    ]);
-    const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `expenses-${activeTab.toLowerCase()}.csv`;
-    link.click();
-    toast.success("Exporting expense report");
-  };
+    const headers = [
+      "Employee",
+      "Email",
+      "Category",
+      "Date",
+      "Amount (₹)",
+      "Status",
+      "Receipt URL",
+      "Submitted On",
+    ];
+
+    const rows = buildExportRows().map((r) => headers.map((h) => r[h]));
+    const worksheetData = [headers, ...rows];
+
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+
+    // Bold + highlighted header row, matching the Attendance export style
+    const range = XLSX.utils.decode_range(worksheet["!ref"]);
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C });
+      if (!worksheet[cellAddress]) continue;
+      worksheet[cellAddress].s = {
+        font: { bold: true },
+        fill: {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { rgb: "FFFF00" },
+        },
+      };
+    }
+
+    worksheet["!cols"] = [
+      { wch: 22 }, // Employee
+      { wch: 26 }, // Email
+      { wch: 16 }, // Category
+      { wch: 14 }, // Date
+      { wch: 14 }, // Amount
+      { wch: 12 }, // Status
+      { wch: 45 }, // Receipt URL
+      { wch: 20 }, // Submitted On
+    ];
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Expenses");
+    XLSX.writeFile(workbook, buildExportFileName("xlsx"));
+    toast.success("Exported as Excel");
+    setShowExportOptions(false);
+  }, [filteredExpenses, buildExportRows, buildExportFileName]);
 
   const periodLabel = `1 Jan ${new Date().getFullYear()} - 30 Dec ${new Date().getFullYear()}`;
 
@@ -269,18 +328,6 @@ const Expense = () => {
             </button>
           ))}
         </div>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => fetchExpenses(true)}
-          disabled={isRefreshing}
-        >
-          <RefreshCw
-            className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
-          />
-          {isRefreshing ? "Refreshing..." : "Refresh"}
-        </Button>
       </div>
 
       <Card className="border-none shadow-sm">
@@ -294,9 +341,33 @@ const Expense = () => {
               {filteredExpenses.length !== 1 ? "s" : ""}
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={exportExpenseReport}>
-            <Download className="h-4 w-4 mr-2" /> Export
-          </Button>
+
+          {/* Export dropdown — Excel + CSV, same pattern as Attendance/Employees */}
+          <div className="relative inline-block text-left" ref={exportRef}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowExportOptions((prev) => !prev)}
+            >
+              <Download className="h-4 w-4 mr-2" /> Export
+            </Button>
+            {showExportOptions && (
+              <div className="absolute right-0 z-20 mt-2 w-48 bg-white border rounded-lg shadow-xl py-1">
+                <button
+                  onClick={handleExportExcel}
+                  className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-50"
+                >
+                  Export as Excel
+                </button>
+                <button
+                  onClick={handleExportCSV}
+                  className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-50"
+                >
+                  Export as CSV
+                </button>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -336,7 +407,7 @@ const Expense = () => {
                   {filteredExpenses.map((expense) => (
                     <TableRow key={expense.id}>
                       <TableCell className="font-medium">
-                        {employeeNameMap[expense.expense_by] || "Unknown"}
+                        {getEmployeeName(expense)}
                       </TableCell>
                       <TableCell>{expense.expense_type}</TableCell>
                       <TableCell>
@@ -363,10 +434,10 @@ const Expense = () => {
                       <TableCell>
                         <Badge
                           className={
-                            STATUS_BADGE_STYLES[expense._normalizedStatus]
+                            STATUS_BADGE_STYLES[expense.expense_status]
                           }
                         >
-                          {expense._normalizedStatus}
+                          {expense.expense_status}
                         </Badge>
                       </TableCell>
                       {activeTab === "Pending" && (

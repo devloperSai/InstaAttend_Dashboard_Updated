@@ -4,6 +4,15 @@ import { toast } from "../../components/ui/sonner.jsx";
 const getErrorMessage = (error, fallback) =>
   error?.response?.data?.message || error?.response?.data?.error || fallback;
 
+// Handles both shapes safely:
+//   1) response.data.data is already an array
+//   2) response.data.data is a paginated wrapper: { totalItems, totalPages, currentPage, data: [...] }
+const extractList = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (payload && Array.isArray(payload.data)) return payload.data;
+  return [];
+};
+
 export const expenseService = {
   /**
    * Retrieve all expense records, optionally filtered by status.
@@ -14,7 +23,7 @@ export const expenseService = {
   getAll: async (status) => {
     try {
       const response = await expenseRepository.getAll(status);
-      return response.data.data;
+      return extractList(response.data.data);
     } catch (error) {
       toast.error(getErrorMessage(error, "Error, Failed to fetch expenses."));
       throw error;
@@ -29,7 +38,7 @@ export const expenseService = {
   getMine: async () => {
     try {
       const response = await expenseRepository.getMine();
-      return response.data.data;
+      return extractList(response.data.data);
     } catch (error) {
       toast.error(
         getErrorMessage(error, "Error, Failed to fetch your expenses."),

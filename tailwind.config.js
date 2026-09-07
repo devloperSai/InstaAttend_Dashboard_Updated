@@ -2,7 +2,6 @@ import tailwindcssAnimate from "tailwindcss-animate";
 
 /** @type {import('tailwindcss').Config} */
 const config = {
-  darkMode: ["class"],
   content: [
     "./pages/**/*.{js,jsx}",
     "./components/**/*.{js,jsx}",
@@ -110,7 +109,10 @@ const config = {
           to: { height: "var(--radix-accordion-content-height)", opacity: "1" },
         },
         "accordion-up": {
-          from: { height: "var(--radix-accordion-content-height)", opacity: "1" },
+          from: {
+            height: "var(--radix-accordion-content-height)",
+            opacity: "1",
+          },
           to: { height: "0", opacity: "0" },
         },
         "fade-in": {
@@ -153,12 +155,15 @@ const config = {
         "fade-in": "fade-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both",
         "fade-out": "fade-out 0.3s ease-out both",
         "scale-in": "scale-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both",
-        "slide-in-right": "slide-in-right 0.35s cubic-bezier(0.22, 1, 0.36, 1) both",
-        "slide-in-left": "slide-in-left 0.35s cubic-bezier(0.22, 1, 0.36, 1) both",
+        "slide-in-right":
+          "slide-in-right 0.35s cubic-bezier(0.22, 1, 0.36, 1) both",
+        "slide-in-left":
+          "slide-in-left 0.35s cubic-bezier(0.22, 1, 0.36, 1) both",
         "pulse-ring": "pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         float: "float 4s ease-in-out infinite",
         "count-up": "count-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both",
-        enter: "fade-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both, scale-in 0.3s ease-out both",
+        enter:
+          "fade-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both, scale-in 0.3s ease-out both",
       },
     },
   },

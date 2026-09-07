@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   addMonths,
   subMonths,
@@ -10,70 +10,47 @@ import {
   format,
   isSameMonth,
   isSameDay,
+  isBefore,
   startOfDay,
 } from "date-fns";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { dashboardService } from "../../api/services/dashboard.service.js";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
+// Same variant set as the main CalendarView, minus holidays (this widget
+// isn't handed a holiday list) and minus "selected" (it's a glanceable
+// display, not an interactive picker). Sized down for the sidebar card.
+const DAY_VARIANT_CLASSES = {
+  // Frosted mint glass, matching the sidebar's active-item treatment —
+  // light enough to stay legible, instead of a solid dark-green fill.
+  today:
+    "bg-primary/10 backdrop-blur-md border border-primary/25 text-primary font-bold shadow-[0_2px_10px_-4px_hsl(var(--primary)/0.5)]",
+  // Sundays get their own muted-blue tone so they read as "day off" at
+  // a glance, distinct from ordinary past days.
+  sunday: "bg-slate-100 text-slate-500",
+  // Days already gone: faded almost to the background, so the eye
+  // naturally reads "these are done" and lands on what's left.
+  past: "text-muted-foreground/40",
+  // Days still to come: normal foreground, no fill — this is a compact
+  // widget, so "future" stays plain rather than fully bordered like the
+  // full calendar's tiles.
+  future: "text-foreground",
+};
+
 /**
  * Compact month calendar for the dashboard's top-right rail.
  *
+ * Purely visual — no API call and no per-day attendance data. It only
+ * needs today's date to compute which tile is "today," which days are
+ * Sundays, and which have already passed, all client-side.
+ *
  * Renders as plain content inside the parent's glass-panel Card (no
- * background of its own) so it inherits the dashboard's theme instead of
- * nesting a flat box inside a glass box. Text weight/contrast bumped
- * (font-bold header, font-semibold weekday labels, solid foreground for
- * date numbers) since thin text on a translucent surface is what read as
- * "blurry" — combined with the global font-smoothing fix in theme.css,
- * this renders crisp on standard-DPI displays.
- *
- * Header ("September 2026") and the "Today" jump-button were further
- * tightened for legibility: larger, heavier type with a touch of
- * letter-spacing on the month/year label so it reads as a proper title
- * rather than a caption, and a solid pill treatment on "Today" so it
- * reads as a distinct, tappable control rather than plain text.
- *
- * Wired to GET /dashboard/attendance-calendar (via dashboardService).
+ * background of its own) so it inherits the dashboard's theme.
  */
 const MiniCalendar = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [calendarData, setCalendarData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-
   const today = startOfDay(new Date());
-
-  const fetchMonth = useCallback(async (monthAnchor) => {
-    setIsLoading(true);
-    try {
-      const startDate = format(startOfMonth(monthAnchor), "yyyy-MM-dd");
-      const endDate = format(endOfMonth(monthAnchor), "yyyy-MM-dd");
-      const data = await dashboardService.getAttendanceCalendar(
-        "custom",
-        startDate,
-        endDate,
-      );
-      setCalendarData(data);
-    } catch (e) {
-      console.error("Failed to fetch mini calendar data", e);
-      setCalendarData(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchMonth(currentMonth);
-  }, [currentMonth, fetchMonth]);
-
-  const attendanceMap = useMemo(() => {
-    const map = new Map();
-    (calendarData?.records || []).forEach((r) => {
-      map.set(r.date, r);
-    });
-    return map;
-  }, [calendarData]);
 
   const weeks = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
@@ -95,17 +72,9 @@ const MiniCalendar = () => {
   return (
     <div>
       <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/60">
-        <div className="flex items-center gap-2">
-          {/* Month/year title — bumped from text-xs/font-extrabold to
-              text-sm/font-bold with tracking-wider so it reads as a
-              heading rather than a small caption label. */}
-          <span className="text-sm font-bold tracking-wider text-primary uppercase">
-            {format(currentMonth, "MMMM yyyy")}
-          </span>
-          {isLoading && (
-            <Loader2 className="h-3 w-3 text-primary animate-spin" />
-          )}
-        </div>
+        <span className="text-sm font-bold tracking-wider text-primary uppercase">
+          {format(currentMonth, "MMMM yyyy")}
+        </span>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
@@ -115,10 +84,6 @@ const MiniCalendar = () => {
           >
             <ChevronLeft className="h-3.5 w-3.5" />
           </button>
-          {/* "Today" — given a solid pill treatment (soft filled
-              background + border) instead of transparent text, with
-              larger/bolder type so it reads as a real button rather than
-              a stray word next to the arrows. */}
           <button
             onClick={() => setCurrentMonth(new Date())}
             className="px-2 py-1 rounded-full border border-primary/30 bg-primary/10 text-[11px] font-bold uppercase tracking-wide text-primary hover:bg-primary/20 hover:border-primary/50 transition-colors"
@@ -139,50 +104,44 @@ const MiniCalendar = () => {
 
       <div className="grid grid-cols-7 gap-y-1 pb-1.5 mb-1.5 border-b border-border/60 text-center">
         {WEEKDAY_LABELS.map((d) => (
-          <span
-            key={d}
-            className="text-[10px] font-bold text-muted-foreground"
-          >
+          <span key={d} className="text-[10px] font-bold text-muted-foreground">
             {d}
           </span>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-y-1 text-center">
+      <div className="grid grid-cols-7 gap-1">
         {weeks.flat().map((d) => {
           const key = format(d, "yyyy-MM-dd");
           const inMonth = isSameMonth(d, currentMonth);
           const isToday = isSameDay(d, today);
-          const hasData = attendanceMap.has(key);
+          const isSunday = d.getDay() === 0;
+          const isPast = isBefore(d, today);
+
+          if (!inMonth) {
+            return <div key={key} className="aspect-square" />;
+          }
+
+          let variant;
+          if (isToday) variant = "today";
+          else if (isSunday) variant = "sunday";
+          else if (isPast) variant = "past";
+          else variant = "future";
+
           return (
-            <div key={key} className="flex flex-col items-center py-0.5">
+            <div key={key} className="flex items-center justify-center">
               <span
                 className={cn(
-                  "flex items-center justify-center h-6 w-6 rounded-full text-[11px] font-medium border border-transparent transition-all duration-300 ease-smooth",
-                  !inMonth && "text-muted-foreground/50",
-                  inMonth && !isToday && "text-foreground hover:border-border",
-                  isToday &&
-                    "bg-primary text-primary-foreground font-bold shadow-[0_0_10px_hsl(var(--primary)/0.55)]",
+                  "flex items-center justify-center aspect-square w-full rounded-lg text-[11px] font-medium transition-colors duration-200 ease-smooth",
+                  DAY_VARIANT_CLASSES[variant],
                 )}
               >
                 {format(d, "d")}
               </span>
-              <span
-                className={cn(
-                  "h-1 w-1 rounded-full mt-0.5",
-                  hasData ? "bg-primary" : "bg-transparent",
-                )}
-              />
             </div>
           );
         })}
       </div>
-
-      {!isLoading && !calendarData?.records?.length && (
-        <p className="text-[11px] font-medium text-muted-foreground mt-3 pt-3 border-t border-border/60 text-center">
-          No attendance records for this month yet
-        </p>
-      )}
     </div>
   );
 };
