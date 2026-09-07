@@ -1,15 +1,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import MainLayout from "../components/layout/MainLayout";
 import { Button } from "../components/ui/button";
-import {
-  Download,
-  Receipt,
-  FileText,
-  Check,
-  X as XIcon,
-  Paperclip,
-  ExternalLink,
-} from "lucide-react";
+import { Download, Receipt, FileText } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -18,20 +10,13 @@ import {
   CardTitle,
 } from "../components/ui/card";
 import { format } from "date-fns";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../components/ui/table";
-import { Badge } from "../components/ui/badge";
 import { toast } from "sonner";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { expenseService } from "../api/services/expense.service.js";
 import { employeeService } from "../api/services/employee.service.js";
+import ExpenseRow, { formatExpenseDate } from "../components/ui/ExpenseRow.jsx";
+import ExpenseProfileModal from "../components/ui/ExpenseProfileModal.jsx";
 
 // Tab keys match the API's expense_status values exactly
 const STATUS_TABS = [
@@ -40,23 +25,6 @@ const STATUS_TABS = [
   { key: "Rejected", label: "Rejected" },
 ];
 
-const STATUS_BADGE_STYLES = {
-  Pending: "bg-orange-100 text-orange-800 border-orange-200",
-  Approved: "bg-green-100 text-green-800 border-green-200",
-  Rejected: "bg-red-100 text-red-800 border-red-200",
-};
-
-const safeFormatDate = (dateVal) => {
-  if (!dateVal) return "N/A";
-  try {
-    const d = new Date(dateVal);
-    if (isNaN(d.getTime())) return "Invalid Date";
-    return format(d, "dd MMM yyyy");
-  } catch {
-    return "Invalid Date";
-  }
-};
-
 const Expense = () => {
   const [expenses, setExpenses] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -64,6 +32,10 @@ const Expense = () => {
   const [activeTab, setActiveTab] = useState("Pending");
   const [updatingId, setUpdatingId] = useState(null);
   const [showExportOptions, setShowExportOptions] = useState(false);
+
+  // Row-profile modal state
+  const [selectedExpense, setSelectedExpense] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const exportRef = useRef();
 
@@ -105,28 +77,39 @@ const Expense = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Map expense_by (UUID) -> employee display name.
-  // Fallback lookup only — the API now embeds `expenseBy.username` directly
-  // on each expense record, which is used first below.
-  const employeeNameMap = useMemo(() => {
+  // Full employee lookup by id — gives us name, role (designation) and
+  // department, since the same employee list already carries all three.
+  const employeeMap = useMemo(() => {
     const map = {};
     employees.forEach((emp) => {
-      map[emp.id] = emp.username;
+      map[emp.id] = emp;
     });
     return map;
   }, [employees]);
 
-  const getEmployeeName = useCallback(
-    (expense) =>
-      expense.expenseBy?.username ||
-      employeeNameMap[expense.expense_by] ||
-      "Unknown",
-    [employeeNameMap],
-  );
-
-  const getEmployeeEmail = useCallback(
-    (expense) => expense.expenseBy?.email || "N/A",
-    [],
+  /**
+   * Resolves display info for a row/modal from whatever the expense
+   * record already carries (expenseBy.*), falling back to the
+   * separately-fetched employees list. No new API calls or fields
+   * required — everything here already exists in current responses.
+   */
+  const getEmployeeInfo = useCallback(
+    (expense) => {
+      const fallback = employeeMap[expense.expense_by];
+      return {
+        name: expense.expenseBy?.username || fallback?.username || "Unknown",
+        email: expense.expenseBy?.email || fallback?.email || "N/A",
+        role:
+          expense.expenseBy?.designation?.designation_name ||
+          fallback?.designation?.designation_name ||
+          "N/A",
+        department:
+          expense.expenseBy?.department?.department_name ||
+          fallback?.department?.department_name ||
+          "N/A",
+      };
+    },
+    [employeeMap],
   );
 
   const totals = useMemo(() => {
@@ -143,18 +126,51 @@ const Expense = () => {
     return { total, review, approved };
   }, [expenses]);
 
+  const tabCounts = useMemo(() => {
+    const counts = { Pending: 0, Approved: 0, Rejected: 0 };
+    expenses.forEach((e) => {
+      if (counts[e.expense_status] !== undefined) counts[e.expense_status] += 1;
+    });
+    return counts;
+  }, [expenses]);
+
   const filteredExpenses = expenses.filter(
     (e) => e.expense_status === activeTab,
   );
 
+  const openExpenseModal = (expense) => {
+    setSelectedExpense(expense);
+    setIsModalOpen(true);
+  };
+
+  const closeExpenseModal = () => {
+    setIsModalOpen(false);
+    // Slight delay so the dialog's own close animation doesn't visibly
+    // clear the content mid-transition.
+    setTimeout(() => setSelectedExpense(null), 150);
+  };
+
+  /**
+   * Updates status via the API, then patches the record in local
+   * state directly (no refetch). Because totals, tabCounts, and
+   * filteredExpenses are all derived from `expenses` via useMemo/filter,
+   * this single setExpenses call is what makes the top summary card,
+   * the tab counts, and the Review/Approved/Rejected tab membership
+   * all update immediately — no page reload.
+   */
   const handleStatusChange = async (expense, newStatus) => {
     setUpdatingId(expense.id);
     try {
       await expenseService.updateExpense(expense.id, {
         expense_status: newStatus,
       });
+      setExpenses((prev) =>
+        prev.map((e) =>
+          e.id === expense.id ? { ...e, expense_status: newStatus } : e,
+        ),
+      );
       toast.success(`Expense ${newStatus.toLowerCase()}`);
-      await fetchExpenses();
+      closeExpenseModal();
     } catch (e) {
       console.error("Failed to update expense status", e);
     } finally {
@@ -162,23 +178,28 @@ const Expense = () => {
     }
   };
 
-  // ---- Export helpers (shared row-building for both formats) ----
+  // ---- Export helpers (unchanged logic, still reflect current tab) ----
   const buildExportRows = useCallback(() => {
-    return filteredExpenses.map((e) => ({
-      Employee: getEmployeeName(e),
-      Email: getEmployeeEmail(e),
-      Category: e.expense_type,
-      Date: e.expense_date
-        ? format(new Date(e.expense_date), "yyyy-MM-dd")
-        : "N/A",
-      "Amount (₹)": Number(e.expense_amount || 0),
-      Status: e.expense_status,
-      "Receipt URL": e.receipt_url || "N/A",
-      "Submitted On": e.createdAt
-        ? format(new Date(e.createdAt), "yyyy-MM-dd HH:mm")
-        : "N/A",
-    }));
-  }, [filteredExpenses, getEmployeeName, getEmployeeEmail]);
+    return filteredExpenses.map((e) => {
+      const info = getEmployeeInfo(e);
+      return {
+        Employee: info.name,
+        Email: info.email,
+        Role: info.role,
+        Department: info.department,
+        Category: e.expense_type,
+        Date: e.expense_date
+          ? format(new Date(e.expense_date), "yyyy-MM-dd")
+          : "N/A",
+        "Amount (₹)": Number(e.expense_amount || 0),
+        Status: e.expense_status,
+        "Receipt URL": e.receipt_url || "N/A",
+        "Submitted On": e.createdAt
+          ? format(new Date(e.createdAt), "yyyy-MM-dd HH:mm")
+          : "N/A",
+      };
+    });
+  }, [filteredExpenses, getEmployeeInfo]);
 
   const buildExportFileName = useCallback(
     (ext) =>
@@ -211,6 +232,8 @@ const Expense = () => {
     const headers = [
       "Employee",
       "Email",
+      "Role",
+      "Department",
       "Category",
       "Date",
       "Amount (₹)",
@@ -225,7 +248,6 @@ const Expense = () => {
     const workbook = XLSX.utils.book_new();
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
 
-    // Bold + highlighted header row, matching the Attendance export style
     const range = XLSX.utils.decode_range(worksheet["!ref"]);
     for (let C = range.s.c; C <= range.e.c; ++C) {
       const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C });
@@ -241,14 +263,16 @@ const Expense = () => {
     }
 
     worksheet["!cols"] = [
-      { wch: 22 }, // Employee
-      { wch: 26 }, // Email
-      { wch: 16 }, // Category
-      { wch: 14 }, // Date
-      { wch: 14 }, // Amount
-      { wch: 12 }, // Status
-      { wch: 45 }, // Receipt URL
-      { wch: 20 }, // Submitted On
+      { wch: 22 },
+      { wch: 26 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 12 },
+      { wch: 45 },
+      { wch: 20 },
     ];
 
     XLSX.utils.book_append_sheet(workbook, worksheet, "Expenses");
@@ -261,7 +285,7 @@ const Expense = () => {
 
   return (
     <MainLayout>
-      {/* Purple summary banner */}
+      {/* Purple summary banner — unchanged */}
       <div className="relative rounded-2xl bg-gradient-to-br from-instattend-500 to-instattend-700 p-6 sm:p-8 mb-6 overflow-hidden">
         <div className="relative z-10 flex items-start justify-between">
           <div>
@@ -311,7 +335,7 @@ const Expense = () => {
         </Card>
       </div>
 
-      {/* Status tabs */}
+      {/* Status tabs — unchanged styling, counts now live from state */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div className="flex items-center gap-2 bg-white rounded-full p-1.5 shadow-sm max-w-md w-full sm:w-auto">
           {STATUS_TABS.map((tab) => (
@@ -325,6 +349,15 @@ const Expense = () => {
               }`}
             >
               {tab.label}
+              <span
+                className={`ml-1.5 text-xs ${
+                  activeTab === tab.key
+                    ? "text-instattend-100"
+                    : "text-gray-400"
+                }`}
+              >
+                ({tabCounts[tab.key] ?? 0})
+              </span>
             </button>
           ))}
         </div>
@@ -342,7 +375,7 @@ const Expense = () => {
             </CardDescription>
           </div>
 
-          {/* Export dropdown — Excel + CSV, same pattern as Attendance/Employees */}
+          {/* Export dropdown — unchanged */}
           <div className="relative inline-block text-left" ref={exportRef}>
             <Button
               variant="outline"
@@ -369,15 +402,15 @@ const Expense = () => {
             )}
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0 sm:p-0">
           {isLoading ? (
-            <div className="space-y-3 animate-pulse">
+            <div className="space-y-3 animate-pulse p-6">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-12 bg-gray-100 rounded" />
+                <div key={i} className="h-14 bg-gray-100 rounded" />
               ))}
             </div>
           ) : filteredExpenses.length === 0 ? (
-            <div className="text-center py-16">
+            <div className="text-center py-16 px-6">
               <FileText className="h-10 w-10 text-gray-300 mx-auto mb-3" />
               <h3 className="text-lg font-medium text-gray-900 mb-1">
                 No Expenses Logged
@@ -388,94 +421,32 @@ const Expense = () => {
               </p>
             </div>
           ) : (
-            <div className="rounded-md border overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Receipt</TableHead>
-                    <TableHead>Status</TableHead>
-                    {activeTab === "Pending" && (
-                      <TableHead className="text-right">Actions</TableHead>
-                    )}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredExpenses.map((expense) => (
-                    <TableRow key={expense.id}>
-                      <TableCell className="font-medium">
-                        {getEmployeeName(expense)}
-                      </TableCell>
-                      <TableCell>{expense.expense_type}</TableCell>
-                      <TableCell>
-                        {safeFormatDate(expense.expense_date)}
-                      </TableCell>
-                      <TableCell>
-                        ₹{Number(expense.expense_amount).toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        {expense.receipt_url ? (
-                          <a
-                            href={expense.receipt_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-instattend-600 hover:text-instattend-700 text-sm"
-                          >
-                            <Paperclip className="h-3.5 w-3.5" /> View
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        ) : (
-                          <span className="text-gray-400 text-sm">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          className={
-                            STATUS_BADGE_STYLES[expense.expense_status]
-                          }
-                        >
-                          {expense.expense_status}
-                        </Badge>
-                      </TableCell>
-                      {activeTab === "Pending" && (
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={updatingId === expense.id}
-                              className="border-green-200 text-green-700 hover:bg-green-50"
-                              onClick={() =>
-                                handleStatusChange(expense, "Approved")
-                              }
-                            >
-                              <Check className="h-3 w-3 mr-1" /> Approve
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={updatingId === expense.id}
-                              className="border-red-200 text-red-700 hover:bg-red-50"
-                              onClick={() =>
-                                handleStatusChange(expense, "Rejected")
-                              }
-                            >
-                              <XIcon className="h-3 w-3 mr-1" /> Reject
-                            </Button>
-                          </div>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="rounded-b-lg overflow-hidden border-t border-gray-100">
+              {filteredExpenses.map((expense) => (
+                <ExpenseRow
+                  key={expense.id}
+                  expense={expense}
+                  employeeInfo={getEmployeeInfo(expense)}
+                  onClick={() => openExpenseModal(expense)}
+                />
+              ))}
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Row-click detail modal — carries Approve/Reject for Pending claims */}
+      <ExpenseProfileModal
+        open={isModalOpen}
+        onOpenChange={(open) =>
+          open ? setIsModalOpen(true) : closeExpenseModal()
+        }
+        expense={selectedExpense}
+        employeeInfo={selectedExpense ? getEmployeeInfo(selectedExpense) : {}}
+        isUpdating={updatingId === selectedExpense?.id}
+        onApprove={() => handleStatusChange(selectedExpense, "Approved")}
+        onReject={() => handleStatusChange(selectedExpense, "Rejected")}
+      />
     </MainLayout>
   );
 };

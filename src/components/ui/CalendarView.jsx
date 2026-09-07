@@ -130,8 +130,10 @@ const CalendarView = ({
       <div className="absolute -inset-1.5 rounded-[24px] bg-gradient-to-br from-primary/20 via-primary/8 to-transparent blur-md -z-10" />
 
       <div className="relative h-full flex flex-col bg-white rounded-2xl shadow-[0_16px_36px_-22px_hsl(var(--primary)/0.45)] p-4 sm:p-6">
-        {/* Header: plain chevrons + centered month/year */}
-        <div className="flex items-center justify-between mb-4 shrink-0">
+        {/* Header: prev/next arrows sit directly against the month/year
+            label as one centered cluster, instead of being pinned to the
+            far left/right edges of the card. */}
+        <div className="flex items-center justify-center gap-2 sm:gap-3 mb-4 shrink-0">
           <button
             onClick={goToPrevMonth}
             aria-label="Previous month"
@@ -139,12 +141,12 @@ const CalendarView = ({
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+          <div className="flex items-center gap-2 min-w-[9rem] sm:min-w-[11rem] justify-center">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 whitespace-nowrap">
               {format(currentMonth, "MMMM yyyy")}
             </h2>
             {isLoading && (
-              <Loader2 className="h-4 w-4 text-primary animate-spin" />
+              <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />
             )}
           </div>
           <button
