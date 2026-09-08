@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import { dashboardService } from "../api/services/dashboard.service.js";
 import { authService } from "../api/services/auth.service";
@@ -31,7 +32,16 @@ const parsePercent = (value) => {
   return isNaN(n) ? 0 : n;
 };
 
+const formatToday = () =>
+  new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
 const Index = () => {
+  const navigate = useNavigate();
   const [stat, setStat] = useState({});
   const [attendanceData, setAttendanceData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -80,6 +90,9 @@ const Index = () => {
 
   const currentUser = authService.getCurrentUser();
   const username = currentUser ? currentUser.username : "User";
+  const todayFormatted = formatToday();
+
+  const goToCalendarPage = () => navigate("/calendar");
 
   return (
     <MainLayout>
@@ -89,12 +102,12 @@ const Index = () => {
         </div>
       ) : (
         <div
-          className="min-h-[calc(100vh-4.5rem)] p-4 md:p-6 pt-2"
+          className="min-h-[calc(100vh-4.5rem)] p-4 md:p-6"
           style={{ backgroundColor: "hsl(var(--dashboard-bg))" }}
         >
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
             {/* ---- Main column ---- */}
-            <div className="lg:col-span-2 space-y-4 md:space-y-6">
+            <div className="lg:col-span-2 space-y-4 md:space-y-5">
               <div className="flex flex-col items-center text-center md:flex-row md:justify-between md:items-center md:text-left gap-4">
                 <div>
                   <h1 className="text-2xl md:text-3xl font-bold text-text-primary">
@@ -114,6 +127,9 @@ const Index = () => {
                     <CardTitle className="text-base md:text-lg font-semibold text-text-primary/90">
                       Today's Attendance Status
                     </CardTitle>
+                    <CardDescription className="text-text-muted mt-0.5">
+                      {todayFormatted}
+                    </CardDescription>
                   </div>
                   <div className="text-sm text-text-muted px-3 py-1.5 rounded-full border border-white/60 bg-white/30">
                     <span className="font-semibold text-text-primary tabular-nums">
@@ -335,22 +351,23 @@ const Index = () => {
             </div>
 
             {/* ---- Right rail ---- */}
-            <div className="space-y-4 md:space-y-6">
-              <div className="flex justify-center lg:justify-end">
-                <div className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/75 text-primary border border-white/90 shadow-sm">
-                  <span className="text-sm font-medium">
-                    Today:{" "}
-                    {new Date().toLocaleDateString("en-US", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </span>
-                </div>
-              </div>
-
-              <Card className="glass-panel border border-white/60 p-5">
+            <div className="space-y-4 md:space-y-5">
+              {/* Entire card is a click-target that routes to the full
+                  Calendar page — except the month prev/next arrows inside
+                  MiniCalendar, which stop propagation so browsing months
+                  doesn't trigger the redirect. */}
+              <Card
+                onClick={goToCalendarPage}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    goToCalendarPage();
+                  }
+                }}
+                className="glass-panel border border-white/60 p-5 cursor-pointer transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:shadow-md"
+              >
                 <div className="relative flex items-center gap-2 mb-4 pb-3 border-b border-white/50">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"

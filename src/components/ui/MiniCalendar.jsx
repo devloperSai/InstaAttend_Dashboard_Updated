@@ -45,6 +45,15 @@ const DAY_VARIANT_CLASSES = {
  * needs today's date to compute which tile is "today," which days are
  * Sundays, and which have already passed, all client-side.
  *
+ * This widget no longer owns any navigation itself: the parent Card in
+ * index.jsx is the click-target that routes to the full Calendar page.
+ * The ONLY interaction that stays local is browsing months. To make sure
+ * that never leaks into the parent's redirect, the whole month-nav row
+ * (both arrows AND the month label between them) is wrapped in a single
+ * container with stopPropagation on it — not just the buttons — so a
+ * click anywhere in that row, including directly on the label or the
+ * chevron icons themselves, never reaches the Card's onClick.
+ *
  * Renders as plain content inside the parent's glass-panel Card (no
  * background of its own) so it inherits the dashboard's theme.
  */
@@ -72,10 +81,19 @@ const MiniCalendar = () => {
   return (
     <div>
       {/* Header: prev/next arrows sit directly against the month label
-          (its own flex group), Today jump-button sits separately on the
+          (its own flex group), Today label sits separately on the
           right — instead of all three being lumped together before. */}
       <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/60">
-        <div className="flex items-center gap-1.5">
+        {/* Guard the ENTIRE month-nav cluster at once: stopPropagation
+            here on the wrapping div catches clicks on the arrows, their
+            SVG icons, and the month text label alike, regardless of
+            exactly which element inside was the click's target. This is
+            more robust than putting stopPropagation on each button
+            individually. */}
+        <div
+          className="flex items-center gap-1.5"
+          onClick={(e) => e.stopPropagation()}
+        >
           <button
             onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
             className="p-1 rounded border border-transparent hover:border-border hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
@@ -97,13 +115,11 @@ const MiniCalendar = () => {
           </button>
         </div>
 
-        <button
-          onClick={() => setCurrentMonth(new Date())}
-          className="px-2 py-1 rounded-full border border-primary/30 bg-primary/10 text-[11px] font-bold uppercase tracking-wide text-primary hover:bg-primary/20 hover:border-primary/50 transition-colors shrink-0"
-          type="button"
-        >
+        {/* Plain label, not a button — clicking here bubbles up to the
+            parent Card's onClick and routes to the full Calendar page. */}
+        <span className="px-2 py-1 rounded-full border border-primary/30 bg-primary/10 text-[11px] font-bold uppercase tracking-wide text-primary shrink-0">
           Today
-        </button>
+        </span>
       </div>
 
       <div className="grid grid-cols-7 gap-y-1 pb-1.5 mb-1.5 border-b border-border/60 text-center">
