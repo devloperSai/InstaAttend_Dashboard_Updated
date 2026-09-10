@@ -1,3 +1,4 @@
+// src/src/pages/Settings.jsx
 import { useEffect, useState, useCallback } from "react";
 import MainLayout from "../components/layout/MainLayout.jsx";
 import { Button } from "../components/ui/button";
@@ -34,6 +35,13 @@ import { useToast } from "../hooks/user-toast.js";
 import { departmentService } from "../api/services/department.service.js";
 import { designationService } from "../api/services/designation.service.js";
 import SettingsSkeleton from "../components/skeleton/SettingsSkeleton.jsx";
+
+// Settings page uses a solid card background (not `.glass-panel`) — the
+// frosted/translucent glass effect combined with backdrop-blur made
+// labels, table text, and input values look washed out / low-contrast
+// on this form-heavy page. Every other page keeps `.glass-panel`
+// unchanged; this swap is scoped to Settings only.
+const SETTINGS_CARD = "bg-white border border-gray-200 shadow-sm";
 
 const Settings = () => {
   const [company, setCompany] = useState({});
@@ -113,7 +121,7 @@ const Settings = () => {
       };
       await departmentService.updateDepartment(
         department.id,
-        updatedDepartment
+        updatedDepartment,
       );
       toast("Department updated successfully");
       fetchDepartments();
@@ -145,7 +153,7 @@ const Settings = () => {
       };
       await designationService.updateDesignation(
         designation.id,
-        updatedDesignation
+        updatedDesignation,
       );
       fetchDesignations();
     } catch (err) {
@@ -191,7 +199,7 @@ const Settings = () => {
         .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))[0]; // get latest
 
       const generalSettings = settings.find(
-        (item) => item.type === "general_settings"
+        (item) => item.type === "general_settings",
       );
 
       // Set state
@@ -245,7 +253,7 @@ const Settings = () => {
         style={{ backgroundColor: "hsl(var(--dashboard-bg))" }}
       >
         <div className="flex justify-between items-center mb-6 px-4 sm:px-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
             Settings
           </h1>
         </div>
@@ -253,352 +261,385 @@ const Settings = () => {
         {isLoading ? (
           <SettingsSkeleton />
         ) : (
-        <Tabs defaultValue="company" className="w-full px-2 sm:px-0">
-          <TabsList className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
-            <TabsTrigger value="company" className="text-xs sm:text-sm">
-              Company
-            </TabsTrigger>
-            <TabsTrigger value="departments" className="text-xs sm:text-sm">
-              Departments
-            </TabsTrigger>
-            <TabsTrigger value="designations" className="text-xs sm:text-sm">
-              Designations
-            </TabsTrigger>
-            <TabsTrigger value="general" className="text-xs sm:text-sm">
-              General
-            </TabsTrigger>
-          </TabsList>
+          <Tabs defaultValue="company" className="w-full px-2 sm:px-0">
+            <TabsList className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+              <TabsTrigger value="company" className="text-xs sm:text-sm">
+                Company
+              </TabsTrigger>
+              <TabsTrigger value="departments" className="text-xs sm:text-sm">
+                Departments
+              </TabsTrigger>
+              <TabsTrigger value="designations" className="text-xs sm:text-sm">
+                Designations
+              </TabsTrigger>
+              <TabsTrigger value="general" className="text-xs sm:text-sm">
+                General
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="company">
-            <Card className="glass-panel border border-white/60">
-              <CardHeader>
-                <CardTitle className="text-foreground">
-                  Company Information
-                </CardTitle>
-                <CardDescription>
-                  Update your company details and information
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="company-name">Company Name</Label>
-                  <Input
-                    id="company-name"
-                    name="company_name"
-                    value={company.company_name || ""}
-                    onChange={handleCompanyChange}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Textarea
-                    id="address"
-                    name="company_address"
-                    value={company.company_address || ""}
-                    onChange={handleCompanyChange}
-                    rows={3}
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input
-                      id="phone"
-                      name="company_phone"
-                      value={company.company_phone || ""}
-                      onChange={handleCompanyChange}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      name="company_email"
-                      value={company.company_email || ""}
-                      onChange={handleCompanyChange}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="website">Website</Label>
-                    <Input
-                      id="website"
-                      name="company_website"
-                      value={company.company_website || ""}
-                      onChange={handleCompanyChange}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="taxId">Tax ID / Registration Number</Label>
-                    <Input
-                      id="taxId"
-                      name="company_gst_no"
-                      value={company.company_gst_no || ""}
-                      onChange={handleCompanyChange}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button
-                  onClick={saveCompanyData}
-                  className="bg-instattend-500 hover:bg-instattend-600 w-full sm:w-auto"
-                >
-                  Save Changes
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="departments">
-            <Card className="glass-panel border border-white/60">
-              <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <CardTitle className="text-foreground">
-                    Departments
+            <TabsContent value="company">
+              <Card className={SETTINGS_CARD}>
+                <CardHeader>
+                  <CardTitle className="text-gray-900">
+                    Company Information
                   </CardTitle>
-                  <CardDescription>
-                    Manage company departments and teams
+                  <CardDescription className="text-gray-500">
+                    Update your company details and information
                   </CardDescription>
-                </div>
-                <Button
-                  className="bg-instattend-500 hover:bg-instattend-600 w-full sm:w-auto"
-                  onClick={() => setAddDepartmentOpen(true)}
-                >
-                  <Plus className="h-5 w-5 mr-2" />
-                  <span className="whitespace-nowrap">Add Department</span>
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table className="min-w-full">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="whitespace-nowrap">
-                          Department
-                        </TableHead>
-                        <TableHead className="whitespace-nowrap">
-                          Address
-                        </TableHead>
-                        <TableHead className="whitespace-nowrap">Lead</TableHead>
-                        <TableHead className="text-right whitespace-nowrap">
-                          Actions
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {departments.map((department) => (
-                        <TableRow key={department.id}>
-                          <TableCell className="whitespace-nowrap">
-                            {department.department_name}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap">
-                            {department.department_address}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap">
-                            {department.department_lead || "NA"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end space-x-2">
-                              <Button
-                                variant="ghost"
-                                className="h-8 w-8 p-0"
-                                onClick={() => {
-                                  setSelectedDepartment(department);
-                                  setEditDepartmentOpen(true);
-                                }}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="company-name" className="text-gray-700">
+                      Company Name
+                    </Label>
+                    <Input
+                      id="company-name"
+                      name="company_name"
+                      value={company.company_name || ""}
+                      onChange={handleCompanyChange}
+                      className="text-gray-900"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="address" className="text-gray-700">
+                      Address
+                    </Label>
+                    <Textarea
+                      id="address"
+                      name="company_address"
+                      value={company.company_address || ""}
+                      onChange={handleCompanyChange}
+                      rows={3}
+                      className="text-gray-900"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone" className="text-gray-700">
+                        Phone
+                      </Label>
+                      <Input
+                        id="phone"
+                        name="company_phone"
+                        value={company.company_phone || ""}
+                        onChange={handleCompanyChange}
+                        className="text-gray-900"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-gray-700">
+                        Email
+                      </Label>
+                      <Input
+                        id="email"
+                        name="company_email"
+                        value={company.company_email || ""}
+                        onChange={handleCompanyChange}
+                        className="text-gray-900"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="website" className="text-gray-700">
+                        Website
+                      </Label>
+                      <Input
+                        id="website"
+                        name="company_website"
+                        value={company.company_website || ""}
+                        onChange={handleCompanyChange}
+                        className="text-gray-900"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="taxId" className="text-gray-700">
+                        Tax ID / Registration Number
+                      </Label>
+                      <Input
+                        id="taxId"
+                        name="company_gst_no"
+                        value={company.company_gst_no || ""}
+                        onChange={handleCompanyChange}
+                        className="text-gray-900"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button
+                    onClick={saveCompanyData}
+                    className="bg-instattend-500 hover:bg-instattend-600 w-full sm:w-auto"
+                  >
+                    Save Changes
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="departments">
+              <Card className={SETTINGS_CARD}>
+                <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-gray-900">Departments</CardTitle>
+                    <CardDescription className="text-gray-500">
+                      Manage company departments and teams
+                    </CardDescription>
+                  </div>
+                  <Button
+                    className="bg-instattend-500 hover:bg-instattend-600 w-full sm:w-auto"
+                    onClick={() => setAddDepartmentOpen(true)}
+                  >
+                    <Plus className="h-5 w-5 mr-2" />
+                    <span className="whitespace-nowrap">Add Department</span>
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table className="min-w-full">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="whitespace-nowrap text-gray-700 font-semibold">
+                            Department
+                          </TableHead>
+                          <TableHead className="whitespace-nowrap text-gray-700 font-semibold">
+                            Address
+                          </TableHead>
+                          <TableHead className="whitespace-nowrap text-gray-700 font-semibold">
+                            Lead
+                          </TableHead>
+                          <TableHead className="text-right whitespace-nowrap text-gray-700 font-semibold">
+                            Actions
+                          </TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
+                      </TableHeader>
+                      <TableBody>
+                        {departments.map((department) => (
+                          <TableRow key={department.id}>
+                            <TableCell className="whitespace-nowrap text-gray-900 font-medium">
+                              {department.department_name}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-gray-700">
+                              {department.department_address}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-gray-700">
+                              {department.department_lead || "NA"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end space-x-2">
+                                <Button
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-gray-600 hover:text-gray-900"
+                                  onClick={() => {
+                                    setSelectedDepartment(department);
+                                    setEditDepartmentOpen(true);
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
 
-            {/*Department Forms*/}
-            <DepartmentForm
-              open={addDepartmentOpen}
-              onOpenChange={setAddDepartmentOpen}
-              onSubmit={handleAddDepartment}
-            />
+              {/*Department Forms*/}
+              <DepartmentForm
+                open={addDepartmentOpen}
+                onOpenChange={setAddDepartmentOpen}
+                onSubmit={handleAddDepartment}
+              />
 
-            <DepartmentForm
-              open={editDepartmentOpen}
-              onOpenChange={setEditDepartmentOpen}
-              department={selectedDepartment}
-              onSubmit={handleUpdateDepartment}
-            />
-          </TabsContent>
+              <DepartmentForm
+                open={editDepartmentOpen}
+                onOpenChange={setEditDepartmentOpen}
+                department={selectedDepartment}
+                onSubmit={handleUpdateDepartment}
+              />
+            </TabsContent>
 
-          <TabsContent value="designations">
-            <Card className="glass-panel border border-white/60">
-              <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <CardTitle className="text-foreground">
-                    Designations
+            <TabsContent value="designations">
+              <Card className={SETTINGS_CARD}>
+                <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-gray-900">
+                      Designations
+                    </CardTitle>
+                    <CardDescription className="text-gray-500">
+                      Manage employee roles and designations
+                    </CardDescription>
+                  </div>
+                  <Button
+                    className="bg-instattend-500 hover:bg-instattend-600 w-full sm:w-auto"
+                    onClick={() => setAddDesignationOpen(true)}
+                  >
+                    <Plus className="h-5 w-5 mr-2" />
+                    <span className="whitespace-nowrap">Add Designation</span>
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table className="min-w-full">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="whitespace-nowrap text-gray-700 font-semibold">
+                            Designation
+                          </TableHead>
+                          <TableHead className="whitespace-nowrap text-gray-700 font-semibold">
+                            Have Admin Access
+                          </TableHead>
+                          <TableHead className="text-right whitespace-nowrap text-gray-700 font-semibold">
+                            Actions
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {designations.map((designation) => (
+                          <TableRow key={designation.id}>
+                            <TableCell className="whitespace-nowrap text-gray-900 font-medium">
+                              {designation.designation_name}
+                            </TableCell>
+                            <TableCell className="font-medium text-gray-900">
+                              {designation.admin_access ? "Yes" : "No"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end space-x-2">
+                                <Button
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-gray-600 hover:text-gray-900"
+                                  onClick={() => {
+                                    setSelectedDesignation(designation);
+                                    setEditDesignationOpen(true);
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+              {/* Designation forms */}
+              <DesignationForm
+                open={addDesignationOpen}
+                onOpenChange={setAddDesignationOpen}
+                onSubmit={handleAddDesignation}
+              />
+
+              <DesignationForm
+                open={editDesignationOpen}
+                onOpenChange={setEditDesignationOpen}
+                designation={selectedDesignation}
+                onSubmit={handleUpdateDesignation}
+              />
+            </TabsContent>
+
+            <TabsContent value="general">
+              <Card className={SETTINGS_CARD}>
+                <CardHeader>
+                  <CardTitle className="text-gray-900">
+                    General Settings
                   </CardTitle>
-                  <CardDescription>
-                    Manage employee roles and designations
+                  <CardDescription className="text-gray-500">
+                    Configure system-wide settings and preferences
                   </CardDescription>
-                </div>
-                <Button
-                  className="bg-instattend-500 hover:bg-instattend-600 w-full sm:w-auto"
-                  onClick={() => setAddDesignationOpen(true)}
-                >
-                  <Plus className="h-5 w-5 mr-2" />
-                  <span className="whitespace-nowrap">Add Designation</span>
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table className="min-w-full">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="whitespace-nowrap">
-                          Designation
-                        </TableHead>
-                        <TableHead className="whitespace-nowrap">
-                          Have Admin Access
-                        </TableHead>
-                        <TableHead className="text-right whitespace-nowrap">
-                          Actions
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {designations.map((designation) => (
-                        <TableRow key={designation.id}>
-                          <TableCell className="whitespace-nowrap">
-                            {designation.designation_name}
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {designation.admin_access ? "Yes" : "No"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end space-x-2">
-                              <Button
-                                variant="ghost"
-                                className="h-8 w-8 p-0"
-                                onClick={() => {
-                                  setSelectedDesignation(designation);
-                                  setEditDesignationOpen(true);
-                                }}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-            {/* Designation forms */}
-            <DesignationForm
-              open={addDesignationOpen}
-              onOpenChange={setAddDesignationOpen}
-              onSubmit={handleAddDesignation}
-            />
-
-            <DesignationForm
-              open={editDesignationOpen}
-              onOpenChange={setEditDesignationOpen}
-              designation={selectedDesignation}
-              onSubmit={handleUpdateDesignation}
-            />
-          </TabsContent>
-
-          <TabsContent value="general">
-            <Card className="glass-panel border border-white/60">
-              <CardHeader>
-                <CardTitle className="text-foreground">
-                  General Settings
-                </CardTitle>
-                <CardDescription>
-                  Configure system-wide settings and preferences
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="work-hours">Standard Work Hours</Label>
-                  <Input
-                    id="work-hours"
-                    name="standard_work_hours"
-                    type="number"
-                    value={generalSettings.standard_work_hours || ""}
-                    onChange={handleGeneralSettingsChange}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="timezone">Timezone</Label>
-                  <Input
-                    id="timezone"
-                    name="timezone"
-                    value={generalSettings.timezone || ""}
-                    onChange={handleGeneralSettingsChange}
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="week-start">Week Start Day</Label>
+                    <Label htmlFor="work-hours" className="text-gray-700">
+                      Standard Work Hours
+                    </Label>
                     <Input
-                      id="week-start"
-                      name="week_start_day"
-                      value={generalSettings.week_start_day || ""}
+                      id="work-hours"
+                      name="standard_work_hours"
+                      type="number"
+                      value={generalSettings.standard_work_hours || ""}
                       onChange={handleGeneralSettingsChange}
+                      className="text-gray-900"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="date-format">Date Format</Label>
+                    <Label htmlFor="timezone" className="text-gray-700">
+                      Timezone
+                    </Label>
                     <Input
-                      id="date-format"
-                      name="date_format"
-                      value={generalSettings.date_format || ""}
+                      id="timezone"
+                      name="timezone"
+                      value={generalSettings.timezone || ""}
                       onChange={handleGeneralSettingsChange}
+                      className="text-gray-900"
                     />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="leave-year">Leave Year Start</Label>
-                  <Input
-                    id="leave-year"
-                    name="leave_year_start"
-                    value={generalSettings.leave_year_start || ""}
-                    onChange={handleGeneralSettingsChange}
-                  />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button
-                  className="bg-instattend-500 hover:bg-instattend-600 w-full sm:w-auto"
-                  onClick={saveGeneralSettings}
-                >
-                  Save Settings
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="week-start" className="text-gray-700">
+                        Week Start Day
+                      </Label>
+                      <Input
+                        id="week-start"
+                        name="week_start_day"
+                        value={generalSettings.week_start_day || ""}
+                        onChange={handleGeneralSettingsChange}
+                        className="text-gray-900"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="date-format" className="text-gray-700">
+                        Date Format
+                      </Label>
+                      <Input
+                        id="date-format"
+                        name="date_format"
+                        value={generalSettings.date_format || ""}
+                        onChange={handleGeneralSettingsChange}
+                        className="text-gray-900"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="leave-year" className="text-gray-700">
+                      Leave Year Start
+                    </Label>
+                    <Input
+                      id="leave-year"
+                      name="leave_year_start"
+                      value={generalSettings.leave_year_start || ""}
+                      onChange={handleGeneralSettingsChange}
+                      className="text-gray-900"
+                    />
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button
+                    className="bg-instattend-500 hover:bg-instattend-600 w-full sm:w-auto"
+                    onClick={saveGeneralSettings}
+                  >
+                    Save Settings
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+          </Tabs>
         )}
       </div>
     </MainLayout>
