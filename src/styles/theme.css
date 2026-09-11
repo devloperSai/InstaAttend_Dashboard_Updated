@@ -20,10 +20,6 @@
     --popover-foreground: 222 47% 11%;
 
     --muted: 165 45% 95%;
-    /* Darkened from 212 17% 47% — the old value was too light/washed out
-       and, combined with grayscale antialiasing, read as blurry rather
-       than just "muted". This gives secondary text real contrast while
-       staying clearly distinct from --foreground. */
     --muted-foreground: 212 15% 34%;
 
     --accent: 160 60% 93%;
@@ -39,8 +35,6 @@
 
     --status-present: 142 71% 45%;
     --status-late: 38 92% 50%;
-    /* Brightened — was 0 45% 58% (desaturated), which read as muddy next
-       to the vivid green/amber/purple/blue status colors. */
     --status-absent: 0 84% 60%;
     --status-leave: 258 90% 66%;
     --status-holiday: 199 89% 48%;
@@ -91,41 +85,6 @@
     --glass-blur: 12px;
     --glass-inner-opacity: 0.5;
   }
-
-  .dark {
-    --background: 190 40% 6%;
-    --foreground: 165 40% 96%;
-    --dashboard-bg: 222 32% 8%;
-
-    --card: 192 32% 10%;
-    --card-foreground: 165 40% 96%;
-    --popover: 192 32% 10%;
-    --popover-foreground: 165 40% 96%;
-
-    --primary: 160 84% 45%;
-    --primary-dark: 160 94% 32%;
-    --primary-light: 160 84% 65%;
-    --primary-foreground: 190 40% 6%;
-
-    --secondary: 192 25% 16%;
-    --secondary-foreground: 165 40% 96%;
-    --muted: 192 25% 16%;
-    --muted-foreground: 212 17% 68%;
-    --accent: 192 30% 18%;
-    --accent-foreground: 160 84% 60%;
-    --destructive: 0 74% 45%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 192 25% 20%;
-    --input: 192 25% 26%;
-    --input-background: 192 32% 13%;
-    --ring: 160 84% 45%;
-
-    --glass-bg: 30 30 30;
-    --glass-bg-opacity: 0.15;
-    --glass-border-opacity: 0.2;
-    --glass-blur: 10px;
-  }
 }
 
 /* ---- glass-panel ---- */
@@ -142,11 +101,6 @@
       transform 0.35s var(--ease-smooth),
       box-shadow 0.35s var(--ease-smooth),
       border-color 0.35s var(--ease-smooth);
-    /* Promote glass surfaces to their own compositing layer. Chromium/
-       WebKit can otherwise resample descendant text through the
-       backdrop-filter blur layer, making perfectly sharp text look
-       soft — this keeps text crisp regardless of the blur happening
-       behind it. */
     transform: translateZ(0);
     backface-visibility: hidden;
   }
@@ -156,11 +110,17 @@
     inset: 0;
     pointer-events: none;
     border-radius: inherit;
+    z-index: 0;
     background: linear-gradient(
       to bottom,
       rgb(255 255 255 / var(--glass-inner-opacity)),
       transparent
     );
+  }
+  /* Keep the decorative highlight behind every card label, input, and data row. */
+  .glass-panel > * {
+    position: relative;
+    z-index: 1;
   }
   .glass-panel:hover {
     box-shadow:
@@ -202,12 +162,6 @@
   body {
     @apply bg-[hsl(var(--dashboard-bg))] text-foreground;
     font-family: var(--font-sans);
-    /* Removed Tailwind's `antialiased` (-webkit-font-smoothing: antialiased
-       + -moz-osx-font-smoothing: grayscale). That combo is tuned for
-       Retina/high-DPI Mac screens; on standard-DPI displays (most Windows
-       machines) it forces thin grayscale glyphs instead of native
-       ClearType/subpixel rendering, which is exactly what reads as
-       "blurry" text. `auto` lets each OS pick its sharpest rendering path. */
     -webkit-font-smoothing: auto;
     -moz-osx-font-smoothing: auto;
     text-rendering: optimizeLegibility;

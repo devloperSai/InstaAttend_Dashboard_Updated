@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import { dashboardService } from "../api/services/dashboard.service.js";
 import { authService } from "../api/services/auth.service";
@@ -23,20 +24,27 @@ import {
 import { DashboardSkeleton } from "../components/skeleton/DashboardSkeleton.jsx";
 import MiniCalendar from "../components/ui/MiniCalendar.jsx";
 import CircularStat from "../components/ui/CircularStat.jsx";
-import NotificationsCard from "../components/ui/NotificationsCard.jsx";
+import RecentActivitiesCard from "../components/ui/RecentActivitiesCard.jsx";
 
-// dashboard.service.js returns presentPercentage/leavePercentage as
-// display-ready strings (e.g. "90.3%"). We need the raw number to drive
-// the CircularStat conic-gradient rings, so this strips it back out.
 const parsePercent = (value) => {
   if (value === undefined || value === null) return 0;
   const n = parseFloat(String(value).replace("%", "").trim());
   return isNaN(n) ? 0 : n;
 };
 
+const formatToday = () =>
+  new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
 const Index = () => {
+  const navigate = useNavigate();
   const [stat, setStat] = useState({});
   const [attendanceData, setAttendanceData] = useState([]);
+  const [activities, setActivities] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchStats = useCallback(async () => {
@@ -47,9 +55,6 @@ const Index = () => {
       const todayStats = dailyStats[dailyStats.length - 1] || {};
 
       const totalEmployees = data.totalEmployees || 0;
-      // "Half Day" replaces the old "Late" summary tile. The daily-stats
-      // payload doesn't guarantee a halfDay/half_day field yet, so this
-      // falls back to 0 instead of fabricating a number.
       const halfDayToday = todayStats.halfDay ?? todayStats.half_day ?? 0;
       const absentToday = todayStats.absent ?? 0;
 
@@ -73,6 +78,7 @@ const Index = () => {
             : 0,
       });
       setAttendanceData(dailyStats);
+      setActivities(Array.isArray(data.activityLog) ? data.activityLog : []);
     } catch (error) {
       console.error("Error fetching stats", error);
     } finally {
@@ -86,26 +92,32 @@ const Index = () => {
 
   const currentUser = authService.getCurrentUser();
   const username = currentUser ? currentUser.username : "User";
+  const todayFormatted = formatToday();
+
+  const goToCalendarPage = () => navigate("/calendar");
 
   return (
     <MainLayout>
       {isLoading ? (
-        <DashboardSkeleton />
+        <div className="p-4 md:p-6">
+          <DashboardSkeleton />
+        </div>
       ) : (
         <div
-          className="-m-6 min-h-[calc(100vh-4rem)] p-4 md:p-6"
+          className="min-h-[calc(100vh-4.5rem)] p-4 md:p-6"
           style={{ backgroundColor: "hsl(var(--dashboard-bg))" }}
         >
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+          <div className="grid min-w-0 grid-cols-1 gap-4 md:gap-6 lg:grid-cols-3">
             {/* ---- Main column ---- */}
-            <div className="lg:col-span-2 space-y-4 md:space-y-6">
+            <div className="min-w-0 space-y-4 md:space-y-5 lg:col-span-2">
               <div className="flex flex-col items-center text-center md:flex-row md:justify-between md:items-center md:text-left gap-4">
                 <div>
                   <h1 className="text-2xl md:text-3xl font-bold text-text-primary">
                     Dashboard
                   </h1>
                   <p className="text-text-muted">
-                    Your attendance overview, all in one place
+                    Welcome back, {username} — your attendance overview, all in
+                    one place
                   </p>
                 </div>
               </div>
@@ -117,7 +129,9 @@ const Index = () => {
                     <CardTitle className="text-base md:text-lg font-semibold text-text-primary/90">
                       Today's Attendance Status
                     </CardTitle>
-                    
+                    <CardDescription className="text-text-muted mt-0.5">
+                      {todayFormatted}
+                    </CardDescription>
                   </div>
                   <div className="text-sm text-text-muted px-3 py-1.5 rounded-full border border-white/60 bg-white/30">
                     <span className="font-semibold text-text-primary tabular-nums">
@@ -154,11 +168,6 @@ const Index = () => {
                         value: stat.onLeave,
                       },
                     ].map((s) => (
-                      // Status-tinted tile — original single-div structure
-                      // kept intact (border + inline bg/border color), just
-                      // with brighter opacity values (0.08→0.14, 0.25→0.45)
-                      // so the color-coding reads clearly against the light
-                      // mint dashboard background.
                       <div
                         key={s.label}
                         className="flex w-full justify-center p-3 rounded-xl border shadow-sm transition-all duration-300 ease-smooth hover:-translate-y-0.5"
@@ -179,10 +188,7 @@ const Index = () => {
                 </CardContent>
               </Card>
 
-              {/* Weekly Trends — redesigned for a cleaner, more premium look:
-                  gradient-filled bars instead of flat color, no nested
-                  translucent boxes, borderless axes, and a compact
-                  top-right legend (standard SaaS-dashboard convention). */}
+              {/* Weekly Trends */}
               <Card className="glass-panel border border-white/60">
                 <CardHeader className="relative border-b border-white/50 pb-4">
                   <CardTitle className="text-base md:text-lg font-semibold text-text-primary/90">
@@ -346,28 +352,24 @@ const Index = () => {
               </Card>
             </div>
 
-            {/* ---- Right rail: today pill + live calendar + notifications ---- */}
-            <div className="space-y-4 md:space-y-6">
-              <div className="flex justify-center lg:justify-end">
-                {/* Removed backdrop-blur-sm here — this pill sits directly
-                    on the dashboard background (not inside a glass-panel),
-                    so the extra blur layer was only adding to the text
-                    softness. A slightly higher solid opacity keeps the
-                    frosted look without sacrificing text crispness. */}
-                <div className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/75 text-primary border border-white/90 shadow-sm">
-                  <span className="text-sm font-medium">
-                    Today:{" "}
-                    {new Date().toLocaleDateString("en-US", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </span>
-                </div>
-              </div>
-
-              <Card className="glass-panel border border-white/60 p-5">
+            {/* ---- Right rail ---- */}
+            <div className="space-y-4 md:space-y-5">
+              {/* Entire card is a click-target that routes to the full
+                  Calendar page — except the month prev/next arrows inside
+                  MiniCalendar, which stop propagation so browsing months
+                  doesn't trigger the redirect. */}
+              <Card
+                onClick={goToCalendarPage}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    goToCalendarPage();
+                  }
+                }}
+                className="glass-panel border border-white/60 p-5 cursor-pointer transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:shadow-md"
+              >
                 <div className="relative flex items-center gap-2 mb-4 pb-3 border-b border-white/50">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -388,7 +390,10 @@ const Index = () => {
               </Card>
 
               <Card className="glass-panel border border-white/60 p-5">
-                <NotificationsCard />
+                <RecentActivitiesCard
+                  activities={activities}
+                  isLoading={isLoading}
+                />
               </Card>
             </div>
           </div>

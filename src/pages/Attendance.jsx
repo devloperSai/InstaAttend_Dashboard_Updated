@@ -25,6 +25,7 @@ import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 import { attendanceService } from "../api/services/attendance.service.js";
 import * as XLSX from "xlsx";
+import AttendanceSkeleton from "../components/skeleton/AttendanceSkeleton.jsx";
 
 const RECORDS_PER_PAGE = 10;
 
@@ -405,7 +406,10 @@ const Attendance = () => {
 
   return (
     <MainLayout>
-      <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
+      <div
+        className="min-w-0 overflow-x-hidden p-4 md:p-6"
+        style={{ backgroundColor: "hsl(var(--dashboard-bg))" }}
+      >
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">
@@ -527,7 +531,7 @@ const Attendance = () => {
           <div className="relative ml-auto w-full md:w-auto" ref={exportRef}>
             <button
               onClick={() => setShowExportOptions(!showExportOptions)}
-              className="flex items-center justify-center gap-2 bg-instattend-600 text-white px-5 py-2 rounded-full w-full md:w-auto font-medium hover:bg-instattend-700 shadow-sm transition-all"
+              className="flex items-center justify-center gap-2 bg-emerald-600 text-white px-5 py-2 rounded-full w-full md:w-auto font-medium hover:bg-emerald-700 shadow-sm transition-all"
             >
               <Download size={16} />
               Export
@@ -551,7 +555,9 @@ const Attendance = () => {
           </div>
         </div>
 
-        {!isLoading && (
+        {isLoading ? (
+          <AttendanceSkeleton />
+        ) : (
           <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
             <table className="min-w-full border-separate border-spacing-0">
               <thead className="bg-gray-50/80 backdrop-blur-sm sticky top-0 z-10">

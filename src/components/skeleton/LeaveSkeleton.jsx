@@ -1,119 +1,80 @@
-import { Button } from "../ui/button";
-import { Calendar, Search, Filter} from "lucide-react";
-import { Input } from "../ui/input";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "../ui/table";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "../ui/Select";
-import { Card, CardContent} from "../ui/card";
+import { Calendar } from "lucide-react";
+import { Card, CardContent } from "../ui/card";
 
+/**
+ * Updated to mirror the new page structure: 4 status-count cards
+ * (Total/Pending/Approved/Rejected) instead of leave-type cards, a
+ * profile-row list instead of a table, and a balance panel column.
+ */
 const LeaveSkeleton = () => {
-    return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-gray-800">Leave Management</h1>
-                <Button className="bg-instattend-500 hover:bg-instattend-600">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Apply for Leave
-                </Button>
-            </div>
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-2">
+        <h1 className="text-2xl font-bold text-gray-800">Leave Management</h1>
+      </div>
 
-            {/* Leave Type Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                {["Sick Leave", "Vacation", "Personal Leave", "Other"].map((type, index) => (
-                    <Card key={index} className="border-none shadow-sm">
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-500">{type}</p>
-                                    <div className="h-6 w-20 bg-gray-200 animate-pulse rounded mt-1" />
-                                </div>
-                                <div className="p-3 rounded-full bg-gray-100 text-gray-400">
-                                    <Calendar className="h-5 w-5" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
-
-            {/* Filters and Table */}
-            <div className="bg-white rounded-lg shadow-sm mb-6">
-                <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div className="relative max-w-md w-full">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                        <Input className="pl-10" placeholder="Search leaves..." disabled />
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Select>
-                            <SelectTrigger className="w-[150px]">
-                                <SelectValue placeholder="All Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Status</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <Select>
-                            <SelectTrigger className="w-[150px]">
-                                <SelectValue placeholder="All Types" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Types</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <Button variant="outline" size="icon" disabled>
-                            <Filter className="h-4 w-4" />
-                        </Button>
-                    </div>
+      {/* Status Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        {["Total Requests", "Pending", "Approved", "Rejected"].map(
+          (label, index) => (
+            <Card key={index} className="border-none shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">{label}</p>
+                    <div className="h-6 w-16 bg-gray-200 animate-pulse rounded mt-1" />
+                  </div>
+                  <div className="p-3 rounded-full bg-gray-100 text-gray-400">
+                    <Calendar className="h-5 w-5" />
+                  </div>
                 </div>
+              </CardContent>
+            </Card>
+          ),
+        )}
+      </div>
 
-                {/* Table Skeleton */}
-                <div className="overflow-x-auto">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                {[
-                                    "Employee",
-                                    "Leave Type",
-                                    "From",
-                                    "To",
-                                    "Days",
-                                    "Status",
-                                    "Reason",
-                                    "Actions",
-                                ].map((head, idx) => (
-                                    <TableHead key={idx}>{head}</TableHead>
-                                ))}
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {Array.from({ length: 4 }).map((_, index) => (
-                                <TableRow key={index}>
-                                    {Array.from({ length: 8 }).map((_, col) => (
-                                        <TableCell key={col}>
-                                            <div className="h-4 w-full bg-gray-200 animate-pulse rounded" />
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Request list */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="p-4 bg-white rounded-lg shadow-sm">
+            <div className="h-10 w-full max-w-md bg-gray-100 animate-pulse rounded" />
+          </div>
+          <div className="rounded-lg border border-gray-100 bg-white shadow-sm overflow-hidden">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 sm:gap-4 p-4 sm:p-5 border-b last:border-b-0 border-gray-100"
+              >
+                <div className="h-10 w-10 rounded-full bg-gray-200 animate-pulse shrink-0" />
+                <div className="flex-1 space-y-2 min-w-0">
+                  <div className="h-4 w-1/2 max-w-[200px] bg-gray-200 animate-pulse rounded" />
+                  <div className="h-3 w-1/3 max-w-[150px] bg-gray-100 animate-pulse rounded" />
                 </div>
-            </div>
+                <div className="hidden sm:block h-6 w-20 bg-gray-100 animate-pulse rounded-full shrink-0" />
+                <div className="hidden md:block h-4 w-24 bg-gray-100 animate-pulse rounded shrink-0" />
+                <div className="h-6 w-16 bg-gray-100 animate-pulse rounded-full shrink-0" />
+              </div>
+            ))}
+          </div>
         </div>
-    );
+
+        {/* Balance panel */}
+        <Card className="border-none shadow-sm">
+          <CardContent className="p-6 space-y-4">
+            <div className="h-4 w-32 bg-gray-200 animate-pulse rounded" />
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-3 w-3/4 bg-gray-100 animate-pulse rounded" />
+                <div className="h-1.5 w-full bg-gray-100 animate-pulse rounded-full" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
 };
 
 export default LeaveSkeleton;

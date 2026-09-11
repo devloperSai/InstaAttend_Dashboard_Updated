@@ -3,7 +3,12 @@ import React, { useEffect, useState } from "react";
 import { Input } from "./input";
 import { employeeService } from "../../api/services/employee.service.js";
 
-const UpdateEmployeeForm = ({ onClose, selectedEmployee, departments, designation }) => {
+const UpdateEmployeeForm = ({
+  onClose,
+  selectedEmployee,
+  departments,
+  designation,
+}) => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -11,11 +16,10 @@ const UpdateEmployeeForm = ({ onClose, selectedEmployee, departments, designatio
     department: "",
     status: "",
     geofencing: "",
-    designation: ""
+    designation: "",
   });
 
   const [errors, setErrors] = useState({});
-
 
   const updateEmployee = async (updatedEmployee) => {
     try {
@@ -24,9 +28,7 @@ const UpdateEmployeeForm = ({ onClose, selectedEmployee, departments, designatio
     } catch (error) {
       console.log(error);
     }
-  }
-
-
+  };
 
   useEffect(() => {
     if (selectedEmployee) {
@@ -34,14 +36,13 @@ const UpdateEmployeeForm = ({ onClose, selectedEmployee, departments, designatio
         name: selectedEmployee.username || "",
         email: selectedEmployee.email || "",
         phone: selectedEmployee.phone_number || "",
-        department_id: selectedEmployee.department_id || "",  // use id, not name
+        department_id: selectedEmployee.department_id || "", // use id, not name
         status: selectedEmployee.is_enrolled ? "Active" : "Inactive",
         geofencing: selectedEmployee.geofencing ? "On" : "Off",
         designation_id: selectedEmployee.designation_id || "",
       });
     }
   }, [selectedEmployee]);
-
 
   const validate = () => {
     const newErrors = {};
@@ -64,10 +65,12 @@ const UpdateEmployeeForm = ({ onClose, selectedEmployee, departments, designatio
       newErrors.phone = "Phone number must be 10 digits";
     }
 
-    if (!String(formData.department_id || "").trim()) newErrors.department_id = "Department is required";
+    if (!String(formData.department_id || "").trim())
+      newErrors.department_id = "Department is required";
     if (!formData.status) newErrors.status = "Enrollment status is required";
     if (!formData.geofencing) newErrors.geofencing = "Geofencing is required";
-    if (!String(formData.designation_id || "").trim()) newErrors.designation_id = "Designation is required";
+    if (!String(formData.designation_id || "").trim())
+      newErrors.designation_id = "Designation is required";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -75,9 +78,9 @@ const UpdateEmployeeForm = ({ onClose, selectedEmployee, departments, designatio
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -92,7 +95,7 @@ const UpdateEmployeeForm = ({ onClose, selectedEmployee, departments, designatio
         department_id: formData.department_id,
         is_enrolled: formData.status === "Active",
         geofencing: formData.geofencing === "On",
-        designation_id: formData.designation_id
+        designation_id: formData.designation_id,
       };
 
       updateEmployee(employee).then(() => {
@@ -103,22 +106,19 @@ const UpdateEmployeeForm = ({ onClose, selectedEmployee, departments, designatio
     }
   };
 
-
-  const departmentOptions = (departments || []).map(dept => ({
+  const departmentOptions = (departments || []).map((dept) => ({
     label: dept.department_name,
-    value: dept.id // or dept.department_id depending on your data
+    value: dept.id, // or dept.department_id depending on your data
   }));
 
-  const designationOptions = (designation || []).map(desig => ({
+  const designationOptions = (designation || []).map((desig) => ({
     label: desig.designation_name,
-    value: desig.id
+    value: desig.id,
   }));
-
-
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
-      <div className="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-md max-h-[90vh] flex flex-col">
+    <div className="w-full max-w-2xl mx-auto">
+      <div className="flex w-full flex-col">
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b">
           <h2 className="text-2xl font-semibold">Update Employee</h2>
@@ -164,15 +164,14 @@ const UpdateEmployeeForm = ({ onClose, selectedEmployee, departments, designatio
             />
 
             <FormSelect
-                label="Department"
-                name="department_id"
-                value={formData.department_id}  // use correct field from formData
-                onChange={handleChange}
-                error={errors.department_id}
-                options={departmentOptions}
-                placeholder="Select department"
+              label="Department"
+              name="department_id"
+              value={formData.department_id} // use correct field from formData
+              onChange={handleChange}
+              error={errors.department_id}
+              options={departmentOptions}
+              placeholder="Select department"
             />
-
 
             <FormSelect
               label="Enrollment Status"
@@ -195,13 +194,13 @@ const UpdateEmployeeForm = ({ onClose, selectedEmployee, departments, designatio
             />
 
             <FormSelect
-                label="Designation"
-                name="designation_id"
-                value={formData.designation_id}  // use correct field from formData
-                onChange={handleChange}
-                error={errors.designation_id}
-                options={designationOptions}
-                placeholder="Select designation"
+              label="Designation"
+              name="designation_id"
+              value={formData.designation_id} // use correct field from formData
+              onChange={handleChange}
+              error={errors.designation_id}
+              options={designationOptions}
+              placeholder="Select designation"
             />
 
             <div className="flex justify-end gap-3 pt-4">
@@ -227,7 +226,15 @@ const UpdateEmployeeForm = ({ onClose, selectedEmployee, departments, designatio
 };
 
 // Reusable input component
-const FormInput = ({ label, name, type = "text", value, onChange, error, placeholder }) => (
+const FormInput = ({
+  label,
+  name,
+  type = "text",
+  value,
+  onChange,
+  error,
+  placeholder,
+}) => (
   <div>
     <label className="block text-sm font-medium mb-1">{label}</label>
     <Input
@@ -243,40 +250,54 @@ const FormInput = ({ label, name, type = "text", value, onChange, error, placeho
 );
 
 // Reusable select component
-const FormSelect = ({ label, name, value, onChange, error, options, placeholder }) => (
-    <div>
-      <label className="block text-sm font-medium mb-1">{label}</label>
-      <select
-          name={name}
-          value={value}
-          onChange={onChange}
-          className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-              error ? "border-red-500 focus:ring-red-500" : "focus:ring-instattend-500"
-          }`}
-      >
-        <option value="" disabled hidden>
-          {placeholder}
-        </option>
-        {options.map((opt, idx) => {
-          // If option is an object with label and value, render accordingly
-          if (typeof opt === "object" && opt !== null && "label" in opt && "value" in opt) {
-            return (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-            );
-          }
-          // Otherwise, assume it's a string
+const FormSelect = ({
+  label,
+  name,
+  value,
+  onChange,
+  error,
+  options,
+  placeholder,
+}) => (
+  <div>
+    <label className="block text-sm font-medium mb-1">{label}</label>
+    <select
+      name={name}
+      value={value}
+      onChange={onChange}
+      className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+        error
+          ? "border-red-500 focus:ring-red-500"
+          : "focus:ring-instattend-500"
+      }`}
+    >
+      <option value="" disabled hidden>
+        {placeholder}
+      </option>
+      {options.map((opt, idx) => {
+        // If option is an object with label and value, render accordingly
+        if (
+          typeof opt === "object" &&
+          opt !== null &&
+          "label" in opt &&
+          "value" in opt
+        ) {
           return (
-              <option key={opt + idx} value={opt}>
-                {opt}
-              </option>
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
           );
-        })}
-      </select>
-      {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
-    </div>
+        }
+        // Otherwise, assume it's a string
+        return (
+          <option key={opt + idx} value={opt}>
+            {opt}
+          </option>
+        );
+      })}
+    </select>
+    {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+  </div>
 );
-
 
 export default UpdateEmployeeForm;

@@ -17,10 +17,10 @@ const NotFound = () => {
 
   return (
     <>
-      <div className="flex flex-col items-center justify-center h-[80vh]">
-        <h1 className="text-7xl font-bold text-attendo-400 mb-2">404</h1>
-        <p className="text-2xl text-gray-600 mb-6">Page Not Found</p>
-        <p className="text-gray-500 mb-8 text-center max-w-md">
+      <div className="flex flex-col items-center justify-center h-[80vh] px-4 text-center">
+        <h1 className="text-6xl sm:text-7xl font-bold text-attendo-400 mb-2">404</h1>
+        <p className="text-xl sm:text-2xl text-gray-600 mb-6">Page Not Found</p>
+        <p className="text-gray-500 mb-8 max-w-md">
           The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.
         </p>
         <Link to="/">

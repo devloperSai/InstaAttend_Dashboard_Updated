@@ -249,7 +249,10 @@ const Employees = () => {
 
   return (
     <MainLayout>
-      <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
+      <div
+        className="min-w-0 overflow-x-hidden p-4 sm:p-6"
+        style={{ backgroundColor: "hsl(var(--dashboard-bg))" }}
+      >
         {/* Header */}
         <div className="flex flex-col items-center sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
           <h1 className="text-xl sm:text-2xl font-bold text-center w-full sm:w-auto">
@@ -489,8 +492,8 @@ const Employees = () => {
 
         {/* Modals */}
         {showConfirm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white p-4 sm:p-6 rounded-xl shadow-xl w-full max-w-sm text-center">
+          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
+            <div className="my-auto w-full max-w-sm rounded-xl bg-white p-5 text-center shadow-xl sm:p-6">
               <h2 className="text-lg font-semibold mb-4">Delete Employee</h2>
               <p className="text-sm text-gray-700 mb-6">
                 Are you sure you want to delete{" "}
@@ -515,8 +518,8 @@ const Employees = () => {
         )}
 
         {isAddDialogOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-lg w-full max-w-md sm:max-w-xl p-4 sm:p-6 relative">
+          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
+            <div className="relative my-auto max-h-[calc(100vh-2rem)] w-full max-w-xl overflow-y-auto rounded-lg bg-white p-4 shadow-lg sm:p-6">
               <AddEmployeeForm
                 onClose={() => setIsAddDialogOpen(false)}
                 departments={departments}
@@ -531,8 +534,8 @@ const Employees = () => {
         )}
 
         {isEditDialogOpen && selectedEmp && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-lg w-full max-w-md sm:max-w-xl p-4 sm:p-6 relative">
+          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
+            <div className="relative my-auto max-h-[calc(100vh-2rem)] w-full max-w-xl overflow-y-auto rounded-lg bg-white p-4 shadow-lg sm:p-6">
               <UpdateEmployeeForm
                 selectedEmployee={selectedEmp}
                 onClose={() => {
@@ -556,8 +559,8 @@ const Employees = () => {
         )}
 
         {showBulkUpload && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-lg w-full max-w-md sm:max-w-xl p-4 sm:p-6 relative">
+          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
+            <div className="relative my-auto max-h-[calc(100vh-2rem)] w-full max-w-xl overflow-y-auto rounded-lg bg-white p-4 shadow-lg sm:p-6">
               <BulkUpload
                 onUpload={bulkRegister}
                 onClose={() => setShowBulkUpload(false)}
