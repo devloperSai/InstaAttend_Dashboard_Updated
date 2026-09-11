@@ -1,4 +1,4 @@
-// src/src/pages/Settings.jsx
+// src/pages/Settings.jsx
 import { useEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import MainLayout from "../components/layout/MainLayout.jsx";
