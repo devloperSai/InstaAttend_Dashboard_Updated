@@ -110,11 +110,17 @@
     inset: 0;
     pointer-events: none;
     border-radius: inherit;
+    z-index: 0;
     background: linear-gradient(
       to bottom,
       rgb(255 255 255 / var(--glass-inner-opacity)),
       transparent
     );
+  }
+  /* Keep the decorative highlight behind every card label, input, and data row. */
+  .glass-panel > * {
+    position: relative;
+    z-index: 1;
   }
   .glass-panel:hover {
     box-shadow:

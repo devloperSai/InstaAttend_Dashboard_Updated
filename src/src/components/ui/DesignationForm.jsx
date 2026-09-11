@@ -22,7 +22,6 @@ import {
 } from "./form";
 import { Input } from "./input";
 import { Button } from "./button";
-import { toast } from "sonner";
 import { Switch } from "./switch";
 
 const designationSchema = z.object({
@@ -30,12 +29,7 @@ const designationSchema = z.object({
   admin_access: z.boolean().default(false),
 });
 
-export function DesignationForm({
-  open,
-  onOpenChange,
-  designation,
-  onSubmit,
-}) {
+export function DesignationForm({ open, onOpenChange, designation, onSubmit }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm({
@@ -45,7 +39,6 @@ export function DesignationForm({
       admin_access: designation?.admin_access || false,
     },
   });
-
 
   useEffect(() => {
     if (designation) {
@@ -66,9 +59,7 @@ export function DesignationForm({
       setIsSubmitting(true);
       await onSubmit({ ...values, id: designation?.id });
       onOpenChange(false);
-      toast.success(`Designation ${designation ? "updated" : "created"} successfully`);
     } catch (error) {
-      toast.error(`Failed to ${designation ? "update" : "create"} designation`);
       console.error(error);
     } finally {
       setIsSubmitting(false);
@@ -81,11 +72,15 @@ export function DesignationForm({
         <DialogHeader>
           <DialogTitle>{designation ? "Edit" : "Add"} Designation</DialogTitle>
           <DialogDescription>
-            {designation ? "Update" : "Create a new"} designation for your organization.
+            {designation ? "Update" : "Create a new"} designation for your
+            organization.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-4"
+          >
             <FormField
               control={form.control}
               name="name"
@@ -106,15 +101,16 @@ export function DesignationForm({
               render={({ field }) => (
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
-                    <FormLabel className="text-base">
-                      Admin Access
-                    </FormLabel>
+                    <FormLabel className="text-base">Admin Access</FormLabel>
                     <FormDescription>
                       Grant admin privileges to this designation
                     </FormDescription>
                   </div>
                   <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
                   </FormControl>
                 </FormItem>
               )}
@@ -132,7 +128,7 @@ export function DesignationForm({
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-instattend-500 hover:bg-instattend-600"
+                className="bg-instattend-600 hover:bg-instattend-700 text-white shadow rounded px-3 py-2 text-sm sm:px-4 sm:py-2"
               >
                 {isSubmitting ? "Saving..." : designation ? "Update" : "Create"}
               </Button>

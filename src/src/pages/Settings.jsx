@@ -1,5 +1,6 @@
 // src/src/pages/Settings.jsx
 import { useEffect, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import MainLayout from "../components/layout/MainLayout.jsx";
 import { Button } from "../components/ui/button";
 import {
@@ -31,7 +32,6 @@ import {
   TableRow,
 } from "../components/ui/table";
 import { Textarea } from "../components/ui/textarea";
-import { useToast } from "../hooks/user-toast.js";
 import { departmentService } from "../api/services/department.service.js";
 import { designationService } from "../api/services/designation.service.js";
 import SettingsSkeleton from "../components/skeleton/SettingsSkeleton.jsx";
@@ -55,7 +55,18 @@ const Settings = () => {
   const [editDesignationOpen, setEditDesignationOpen] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState(undefined);
   const [selectedDesignation, setSelectedDesignation] = useState(undefined);
-  const { toast } = useToast();
+
+  // Delete-confirmation modal state — shared between the Departments and
+  // Designations tabs. `deleteTarget` carries both which kind of record
+  // it is ("department" | "designation") and the record itself, so one
+  // modal + one confirm handler can serve both tables. This is the piece
+  // that was previously missing entirely — the Trash2 buttons had no
+  // onClick at all, so clicking delete did nothing and no popup ever
+  // appeared. The modal below renders as a fixed, centered overlay (same
+  // pattern used for the delete-confirmation modal in Employees.jsx), so
+  // it always shows up centered on the same screen the click happened on.
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleCompanyChange = (e) => {
     const { name, value } = e.target;
@@ -63,102 +74,103 @@ const Settings = () => {
   };
 
   const saveCompanyData = async () => {
-    try {
-      const companyConfig = {
-        company_name: company.company_name,
-        company_address: company.company_address,
-        company_phone: company.company_phone,
-        company_email: company.company_email,
-        company_website: company.company_website,
-        company_gst_no: company.company_gst_no,
-      };
+    const companyConfig = {
+      company_name: company.company_name,
+      company_address: company.company_address,
+      company_phone: company.company_phone,
+      company_email: company.company_email,
+      company_website: company.company_website,
+      company_gst_no: company.company_gst_no,
+    };
 
-      const payload = {
-        type: "company_information",
-        config: companyConfig,
-      };
+    const payload = {
+      type: "company_information",
+      config: companyConfig,
+    };
 
-      if (company.id) {
-        await settingService.updateSettings(company.id, payload);
-      } else {
-        await settingService.createSetting(payload);
-      }
-      fetchSettings();
-    } catch (err) {
-      toast.error("Error saving company data");
-      console.error(err);
+    if (company.id) {
+      await settingService.updateSettings(company.id, payload);
+    } else {
+      await settingService.createSetting(payload);
     }
+    fetchSettings();
   };
 
   const handleAddDepartment = async (department) => {
-    try {
-      const departmentData = {
-        department_name: department.name,
-        department_lat_long: department.coordinates,
-        department_address: department.address,
-        ...(department.lead ? { department_lead: department.lead } : {}),
-      };
-      await departmentService.createDepartment(departmentData);
-      toast("Department added successfully");
-      fetchDepartments();
-    } catch (err) {
-      toast.error("Error adding department");
-      throw err;
-    }
+    const departmentData = {
+      department_name: department.name,
+      department_lat_long: department.coordinates,
+      department_address: department.address,
+      ...(department.lead ? { department_lead: department.lead } : {}),
+    };
+    await departmentService.createDepartment(departmentData);
+    fetchDepartments();
   };
 
   const handleUpdateDepartment = async (department) => {
-    try {
-      const updatedDepartment = {
-        ...(department.name ? { department_name: department.name } : {}),
-        ...(department.coordinates
-          ? { department_lat_long: department.coordinates }
-          : {}),
-        ...(department.address
-          ? { department_address: department.address }
-          : {}),
-        ...(department.lead ? { department_lead: department.lead } : {}),
-      };
-      await departmentService.updateDepartment(
-        department.id,
-        updatedDepartment,
-      );
-      toast("Department updated successfully");
-      fetchDepartments();
-    } catch (err) {
-      toast.error("Error updating department");
-      throw err;
-    }
+    const updatedDepartment = {
+      ...(department.name ? { department_name: department.name } : {}),
+      ...(department.coordinates
+        ? { department_lat_long: department.coordinates }
+        : {}),
+      ...(department.address ? { department_address: department.address } : {}),
+      ...(department.lead ? { department_lead: department.lead } : {}),
+    };
+    await departmentService.updateDepartment(department.id, updatedDepartment);
+    fetchDepartments();
   };
 
   const handleAddDesignation = async (designation) => {
-    try {
-      const designationData = {
-        designation_name: designation.name,
-        admin_access: designation.admin_access,
-      };
-      await designationService.createDesignation(designationData);
-      fetchDesignations();
-    } catch (err) {
-      toast.error("Error adding designation");
-      throw err;
-    }
+    const designationData = {
+      designation_name: designation.name,
+      admin_access: designation.admin_access,
+    };
+    await designationService.createDesignation(designationData);
+    fetchDesignations();
   };
 
   const handleUpdateDesignation = async (designation) => {
+    const updatedDesignation = {
+      ...(designation.name ? { designation_name: designation.name } : {}),
+      admin_access: designation.admin_access,
+    };
+    await designationService.updateDesignation(
+      designation.id,
+      updatedDesignation,
+    );
+    fetchDesignations();
+  };
+
+  // ---- Delete flow (Departments + Designations) ----
+  // Opens the confirmation modal for a given record. `type` is
+  // "department" or "designation" — used both to label the modal text
+  // and to pick which service/refetch to call on confirm.
+  const openDeleteConfirm = (type, item) => {
+    setDeleteTarget({ type, item });
+  };
+
+  const closeDeleteConfirm = () => {
+    if (isDeleting) return; // don't allow closing mid-request
+    setDeleteTarget(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const { type, item } = deleteTarget;
+    setIsDeleting(true);
     try {
-      const updatedDesignation = {
-        ...(designation.name ? { designation_name: designation.name } : {}),
-        admin_access: designation.admin_access,
-      };
-      await designationService.updateDesignation(
-        designation.id,
-        updatedDesignation,
-      );
-      fetchDesignations();
+      if (type === "department") {
+        await departmentService.deleteDepartment(item.id);
+        fetchDepartments();
+      } else if (type === "designation") {
+        await designationService.deleteDesignation(item.id);
+        fetchDesignations();
+      }
+      setDeleteTarget(null);
     } catch (err) {
-      toast.error("Error updating designation");
-      throw err;
+      console.error(err);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -170,71 +182,50 @@ const Settings = () => {
 
   // Create a new function to save general settings
   const saveGeneralSettings = async () => {
-    try {
-      const payload = {
-        type: "general_settings",
-        config: generalSettings,
-      };
+    const payload = {
+      type: "general_settings",
+      config: generalSettings,
+    };
 
-      if (generalSettings.id) {
-        await settingService.updateSettings(generalSettings.id, payload);
-      } else {
-        await settingService.createSetting(payload);
-      }
-      toast("General settings saved successfully!");
-      fetchSettings();
-    } catch (err) {
-      toast.error("Error saving general settings");
-      console.error(err);
+    if (generalSettings.id) {
+      await settingService.updateSettings(generalSettings.id, payload);
+    } else {
+      await settingService.createSetting(payload);
     }
+    fetchSettings();
   };
 
   const fetchSettings = useCallback(async () => {
-    try {
-      const settings = await settingService.getAll();
+    const settings = await settingService.getAll();
 
-      // Filter settings by type
-      const companySettings = settings
-        .filter((item) => item.type === "company_information")
-        .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))[0]; // get latest
+    // Filter settings by type
+    const companySettings = settings
+      .filter((item) => item.type === "company_information")
+      .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))[0]; // get latest
 
-      const generalSettings = settings.find(
-        (item) => item.type === "general_settings",
-      );
+    const generalSettings = settings.find(
+      (item) => item.type === "general_settings",
+    );
 
-      // Set state
-      if (companySettings) {
-        setCompany(companySettings.config);
-      }
-
-      if (generalSettings) {
-        setGeneralSettings(generalSettings.config);
-      }
-    } catch (e) {
-      toast.error("Error fetching settings");
-      throw e;
+    // Set state
+    if (companySettings) {
+      setCompany(companySettings.config);
     }
-  }, [toast]);
+
+    if (generalSettings) {
+      setGeneralSettings(generalSettings.config);
+    }
+  }, []);
 
   const fetchDepartments = useCallback(async () => {
-    try {
-      const data = await departmentService.getDepartments();
-      setDepartments(data);
-    } catch (err) {
-      toast.error("Error fetching departments");
-      throw err;
-    }
-  }, [toast]);
+    const data = await departmentService.getDepartments();
+    setDepartments(data);
+  }, []);
 
   const fetchDesignations = useCallback(async () => {
-    try {
-      const data = await designationService.getDesignations();
-      setDesignations(data);
-    } catch (err) {
-      toast.error("Error fetching designations");
-      throw err;
-    }
-  }, [toast]);
+    const data = await designationService.getDesignations();
+    setDesignations(data);
+  }, []);
 
   useEffect(() => {
     setIsLoading(true);
@@ -249,10 +240,10 @@ const Settings = () => {
   return (
     <MainLayout>
       <div
-        className="-m-6 min-h-[calc(100vh-4rem)] p-4 md:p-6"
+        className="min-h-[calc(100vh-4rem)] min-w-0 overflow-x-hidden p-4 md:p-6"
         style={{ backgroundColor: "hsl(var(--dashboard-bg))" }}
       >
-        <div className="flex justify-between items-center mb-6 px-4 sm:px-0">
+        <div className="mb-6 flex items-center justify-between">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
             Settings
           </h1>
@@ -261,18 +252,30 @@ const Settings = () => {
         {isLoading ? (
           <SettingsSkeleton />
         ) : (
-          <Tabs defaultValue="company" className="w-full px-2 sm:px-0">
-            <TabsList className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
-              <TabsTrigger value="company" className="text-xs sm:text-sm">
+          <Tabs defaultValue="company" className="w-full">
+            <TabsList className="mb-6 grid h-auto w-full grid-cols-2 gap-2 bg-transparent p-0 sm:grid-cols-4">
+              <TabsTrigger
+                value="company"
+                className="border-l-4 border-transparent py-2.5 text-xs transition-all hover:bg-primary/10 hover:text-primary data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-glow sm:text-sm"
+              >
                 Company
               </TabsTrigger>
-              <TabsTrigger value="departments" className="text-xs sm:text-sm">
+              <TabsTrigger
+                value="departments"
+                className="border-l-4 border-transparent py-2.5 text-xs transition-all hover:bg-primary/10 hover:text-primary data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-glow sm:text-sm"
+              >
                 Departments
               </TabsTrigger>
-              <TabsTrigger value="designations" className="text-xs sm:text-sm">
+              <TabsTrigger
+                value="designations"
+                className="border-l-4 border-transparent py-2.5 text-xs transition-all hover:bg-primary/10 hover:text-primary data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-glow sm:text-sm"
+              >
                 Designations
               </TabsTrigger>
-              <TabsTrigger value="general" className="text-xs sm:text-sm">
+              <TabsTrigger
+                value="general"
+                className="border-l-4 border-transparent py-2.5 text-xs transition-all hover:bg-primary/10 hover:text-primary data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-glow sm:text-sm"
+              >
                 General
               </TabsTrigger>
             </TabsList>
@@ -369,7 +372,7 @@ const Settings = () => {
                 <CardFooter>
                   <Button
                     onClick={saveCompanyData}
-                    className="bg-instattend-500 hover:bg-instattend-600 w-full sm:w-auto"
+                    className="bg-instattend-600 hover:bg-instattend-700 text-white shadow rounded px-3 py-2 text-sm sm:px-4 sm:py-2 w-full sm:w-auto"
                   >
                     Save Changes
                   </Button>
@@ -387,7 +390,7 @@ const Settings = () => {
                     </CardDescription>
                   </div>
                   <Button
-                    className="bg-instattend-500 hover:bg-instattend-600 w-full sm:w-auto"
+                    className="bg-instattend-600 hover:bg-instattend-700 text-white shadow rounded px-3 py-2 text-sm sm:px-4 sm:py-2 w-full sm:w-auto"
                     onClick={() => setAddDepartmentOpen(true)}
                   >
                     <Plus className="h-5 w-5 mr-2" />
@@ -440,6 +443,9 @@ const Settings = () => {
                                 <Button
                                   variant="ghost"
                                   className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
+                                  onClick={() =>
+                                    openDeleteConfirm("department", department)
+                                  }
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -480,7 +486,7 @@ const Settings = () => {
                     </CardDescription>
                   </div>
                   <Button
-                    className="bg-instattend-500 hover:bg-instattend-600 w-full sm:w-auto"
+                    className="bg-instattend-600 hover:bg-instattend-700 text-white shadow rounded px-3 py-2 text-sm sm:px-4 sm:py-2 w-full sm:w-auto"
                     onClick={() => setAddDesignationOpen(true)}
                   >
                     <Plus className="h-5 w-5 mr-2" />
@@ -527,6 +533,12 @@ const Settings = () => {
                                 <Button
                                   variant="ghost"
                                   className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
+                                  onClick={() =>
+                                    openDeleteConfirm(
+                                      "designation",
+                                      designation,
+                                    )
+                                  }
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -631,7 +643,7 @@ const Settings = () => {
                 </CardContent>
                 <CardFooter>
                   <Button
-                    className="bg-instattend-500 hover:bg-instattend-600 w-full sm:w-auto"
+                    className="bg-instattend-600 hover:bg-instattend-700 text-white shadow rounded px-3 py-2 text-sm sm:px-4 sm:py-2 w-full sm:w-auto"
                     onClick={saveGeneralSettings}
                   >
                     Save Settings
@@ -642,6 +654,58 @@ const Settings = () => {
           </Tabs>
         )}
       </div>
+
+      {/* Delete-confirmation modal — shared by Departments & Designations.
+          Rendered through a portal straight to document.body instead of
+          inline here. MainLayout's <main> carries `animate-fade-in`,
+          whose keyframes set a `transform` on it; per the CSS spec, any
+          ancestor with a `transform` becomes the containing block for
+          `position: fixed` descendants, so a plain inline fixed overlay
+          only covers that scrollable <main> box (not the full viewport) —
+          which is exactly the partially-dimmed screen seen in the bug
+          report. Portaling to document.body escapes that ancestor
+          entirely, the same way Radix's DialogPortal does elsewhere in
+          this app, so the overlay always covers the whole screen and
+          stays centered regardless of scroll position. */}
+      {deleteTarget &&
+        createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/50 p-4">
+            <div className="my-auto w-full max-w-sm rounded-xl bg-white p-5 text-center shadow-xl sm:p-6">
+              <h2 className="text-lg font-semibold mb-4 text-gray-900">
+                Delete{" "}
+                {deleteTarget.type === "department"
+                  ? "Department"
+                  : "Designation"}
+              </h2>
+              <p className="text-sm text-gray-700 mb-6">
+                Are you sure you want to delete{" "}
+                <strong>
+                  {deleteTarget.type === "department"
+                    ? deleteTarget.item.department_name
+                    : deleteTarget.item.designation_name}
+                </strong>
+                ? This action cannot be undone.
+              </p>
+              <div className="flex justify-center space-x-4">
+                <button
+                  onClick={confirmDelete}
+                  disabled={isDeleting}
+                  className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm sm:text-base disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isDeleting ? "Deleting..." : "Yes, Delete"}
+                </button>
+                <button
+                  onClick={closeDeleteConfirm}
+                  disabled={isDeleting}
+                  className="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 text-sm sm:text-base disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </MainLayout>
   );
 };

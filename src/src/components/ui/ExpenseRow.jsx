@@ -31,16 +31,42 @@ export const formatExpenseDate = (dateVal) => {
   });
 };
 
+// Shared column layout so the header row and every data row line up
+// pixel-for-pixel. Keep these ratios identical between ExpenseRowHeader
+// and ExpenseRow — that's what actually guarantees alignment, not the
+// visual content inside each cell.
+const COL_IDENTITY = "flex items-center gap-3 min-w-0 flex-[1.4]";
+const COL_CATEGORY = "hidden sm:flex flex-1 justify-center min-w-0";
+const COL_DATE = "hidden md:flex flex-1 justify-center";
+const COL_AMOUNT = "flex-1 flex justify-center";
+const COL_STATUS = "flex-1 flex justify-center";
+const COL_CHEVRON = "w-5 shrink-0";
+
+/**
+ * Column-label header for the expense list. Renders once above the rows
+ * so users can see what each column means — without this, the row's
+ * category/date/amount/status columns had no anchor and read as
+ * misaligned even though every row used the same layout.
+ */
+export const ExpenseRowHeader = () => (
+  <div className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3 bg-gray-50 border-b border-gray-100 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+    <div className={COL_IDENTITY}>Employee</div>
+    <div className={COL_CATEGORY}>Category</div>
+    <div className={COL_DATE}>Date</div>
+    <div className={COL_AMOUNT}>Amount</div>
+    <div className={COL_STATUS}>Status</div>
+    <div className={COL_CHEVRON} aria-hidden="true" />
+  </div>
+);
+
 /**
  * Single expense row rendered in a "profile row" style instead of a
  * table row — avatar, name/role/department, category tag, date,
  * amount, status badge, and a trailing chevron indicating the row
  * opens a detail modal on click.
  *
- * Columns are distributed with flex-1 across the full row width
- * (instead of being crammed into fixed narrow widths at the right
- * edge) so the row fills the available space evenly regardless of
- * container width, with no large dead zones between fields.
+ * Column classes are shared with ExpenseRowHeader above so every
+ * column lines up with its label at every breakpoint.
  */
 const ExpenseRow = ({ expense, employeeInfo, onClick }) => {
   const { name, role, department } = employeeInfo;
@@ -52,7 +78,7 @@ const ExpenseRow = ({ expense, employeeInfo, onClick }) => {
       className="w-full flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-4 bg-white hover:bg-gray-50 transition-colors text-left border-b last:border-b-0 border-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-instattend-500 focus-visible:ring-offset-2"
     >
       {/* Avatar / Name / role / department */}
-      <div className="flex items-center gap-3 min-w-0 flex-[1.4]">
+      <div className={COL_IDENTITY}>
         <div className="h-10 w-10 rounded-full gradient-primary text-primary-foreground font-semibold flex items-center justify-center text-sm shrink-0">
           {getInitials(name)}
         </div>
@@ -66,7 +92,7 @@ const ExpenseRow = ({ expense, employeeInfo, onClick }) => {
       </div>
 
       {/* Category */}
-      <div className="hidden sm:flex flex-1 justify-center min-w-0">
+      <div className={COL_CATEGORY}>
         <span
           className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${CATEGORY_BADGE_STYLE}`}
         >
@@ -75,26 +101,28 @@ const ExpenseRow = ({ expense, employeeInfo, onClick }) => {
       </div>
 
       {/* Date */}
-      <div className="hidden md:flex flex-1 justify-center text-sm text-gray-600 whitespace-nowrap">
+      <div className={`${COL_DATE} text-sm text-gray-600 whitespace-nowrap`}>
         {formatExpenseDate(expense.expense_date)}
       </div>
 
       {/* Amount */}
-      <div className="flex-1 flex justify-center sm:justify-center text-sm font-bold text-gray-900 whitespace-nowrap">
+      <div
+        className={`${COL_AMOUNT} text-sm font-bold text-gray-900 whitespace-nowrap`}
+      >
         ₹{Number(expense.expense_amount || 0).toLocaleString()}
       </div>
 
       {/* Status */}
-      <div className="flex-1 flex justify-end sm:justify-center">
+      <div className={COL_STATUS}>
         <Badge className={STATUS_BADGE_STYLES[expense.expense_status]}>
           {expense.expense_status}
         </Badge>
       </div>
 
-      {/* Chevron — was text-gray-300 (nearly invisible on white),
-          switched to the brand green so it reads clearly as an
-          affordance to open the row's detail modal. */}
-      <ChevronRight className="h-5 w-5 text-instattend-500 shrink-0" />
+      {/* Chevron */}
+      <div className={`${COL_CHEVRON} flex justify-end`}>
+        <ChevronRight className="h-5 w-5 text-instattend-500" />
+      </div>
     </button>
   );
 };

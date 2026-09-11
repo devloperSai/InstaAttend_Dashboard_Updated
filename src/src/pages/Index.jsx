@@ -24,7 +24,7 @@ import {
 import { DashboardSkeleton } from "../components/skeleton/DashboardSkeleton.jsx";
 import MiniCalendar from "../components/ui/MiniCalendar.jsx";
 import CircularStat from "../components/ui/CircularStat.jsx";
-import NotificationsCard from "../components/ui/NotificationsCard.jsx";
+import RecentActivitiesCard from "../components/ui/RecentActivitiesCard.jsx";
 
 const parsePercent = (value) => {
   if (value === undefined || value === null) return 0;
@@ -44,6 +44,7 @@ const Index = () => {
   const navigate = useNavigate();
   const [stat, setStat] = useState({});
   const [attendanceData, setAttendanceData] = useState([]);
+  const [activities, setActivities] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchStats = useCallback(async () => {
@@ -77,6 +78,7 @@ const Index = () => {
             : 0,
       });
       setAttendanceData(dailyStats);
+      setActivities(Array.isArray(data.activityLog) ? data.activityLog : []);
     } catch (error) {
       console.error("Error fetching stats", error);
     } finally {
@@ -105,9 +107,9 @@ const Index = () => {
           className="min-h-[calc(100vh-4.5rem)] p-4 md:p-6"
           style={{ backgroundColor: "hsl(var(--dashboard-bg))" }}
         >
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+          <div className="grid min-w-0 grid-cols-1 gap-4 md:gap-6 lg:grid-cols-3">
             {/* ---- Main column ---- */}
-            <div className="lg:col-span-2 space-y-4 md:space-y-5">
+            <div className="min-w-0 space-y-4 md:space-y-5 lg:col-span-2">
               <div className="flex flex-col items-center text-center md:flex-row md:justify-between md:items-center md:text-left gap-4">
                 <div>
                   <h1 className="text-2xl md:text-3xl font-bold text-text-primary">
@@ -388,7 +390,10 @@ const Index = () => {
               </Card>
 
               <Card className="glass-panel border border-white/60 p-5">
-                <NotificationsCard />
+                <RecentActivitiesCard
+                  activities={activities}
+                  isLoading={isLoading}
+                />
               </Card>
             </div>
           </div>

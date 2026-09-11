@@ -67,16 +67,16 @@ const RecentActivitiesCard = ({ activities = [], isLoading = false }) => {
   const list = Array.isArray(activities) ? activities : [];
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200/70">
+    <div className="relative z-10">
+      <div className="flex items-center justify-between mb-4 pb-3 border-b border-border/60">
         <div className="flex items-center gap-2">
           <Activity className="h-4 w-4 text-primary" />
-          <h3 className="font-semibold text-gray-900 text-sm">
+          <h3 className="font-semibold text-foreground text-sm">
             Recent Activities
           </h3>
         </div>
         {list.length > 0 && (
-          <span className="bg-primary/15 text-primary-dark text-[10px] font-bold px-2 py-0.5 rounded-full">
+          <span className="bg-primary/15 text-primary-dark text-[10px] font-semibold px-2 py-0.5 rounded-full">
             {list.length}
           </span>
         )}
@@ -86,21 +86,21 @@ const RecentActivitiesCard = ({ activities = [], isLoading = false }) => {
         <div className="space-y-3 animate-pulse">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-gray-200 flex-shrink-0" />
+              <div className="h-8 w-8 rounded-full bg-muted flex-shrink-0" />
               <div className="flex-1 space-y-1.5">
-                <div className="h-3 w-3/4 rounded bg-gray-200" />
-                <div className="h-2.5 w-1/3 rounded bg-gray-200" />
+                <div className="h-3 w-3/4 rounded bg-muted" />
+                <div className="h-2.5 w-1/3 rounded bg-muted" />
               </div>
             </div>
           ))}
         </div>
       ) : list.length === 0 ? (
-        <div className="flex flex-col items-center text-center py-6 text-gray-500 border border-dashed border-gray-300 rounded-lg">
-          <Activity className="h-7 w-7 mb-2 text-gray-400" />
-          <p className="text-sm font-medium text-gray-600">
+        <div className="flex flex-col items-center text-center py-6 text-muted-foreground border border-dashed border-border rounded-lg">
+          <Activity className="h-7 w-7 mb-2 text-muted-foreground/70" />
+          <p className="text-sm font-medium text-foreground/80">
             No recent activity
           </p>
-          <p className="text-xs mt-0.5 text-gray-500">
+          <p className="text-xs mt-0.5 text-muted-foreground">
             Check-ins and updates will appear here
           </p>
         </div>
@@ -111,7 +111,7 @@ const RecentActivitiesCard = ({ activities = [], isLoading = false }) => {
             return (
               <div
                 key={`${item.user}-${item.time}-${idx}`}
-                className="flex items-start gap-3 border-b border-gray-200/70 last:border-b-0 pb-3 last:pb-0"
+                className="flex items-start gap-3 border-b border-border/60 last:border-b-0 pb-3 last:pb-0"
               >
                 <div
                   className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0"
@@ -120,11 +120,11 @@ const RecentActivitiesCard = ({ activities = [], isLoading = false }) => {
                   <Icon className="h-4 w-4" strokeWidth={2.25} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-900 truncate leading-snug">
+                  <p className="text-sm text-foreground truncate leading-snug">
                     <span className="font-semibold">
                       {item.user || "Someone"}
                     </span>{" "}
-                    <span className="text-gray-700 font-medium">
+                    <span className="text-foreground font-medium">
                       {item.action}
                     </span>
                   </p>
@@ -133,7 +133,7 @@ const RecentActivitiesCard = ({ activities = [], isLoading = false }) => {
                       className="h-1.5 w-1.5 rounded-full flex-shrink-0"
                       style={{ backgroundColor: color }}
                     />
-                    <span className="text-xs text-gray-500 font-medium">
+                    <span className="text-xs text-foreground font-medium">
                       {safeRelativeTime(item.time)}
                     </span>
                   </div>

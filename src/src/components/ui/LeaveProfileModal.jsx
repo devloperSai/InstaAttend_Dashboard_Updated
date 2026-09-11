@@ -16,17 +16,11 @@ import {
   safeFormatDate,
 } from "./LeaveRow";
 
-/**
- * Detail modal for a single leave request. Opened by clicking a row in
- * LeaveRow. Shows employee context, leave balance with a progress bar,
- * full request details, and — only when still Pending — Approve/Reject
- * actions. Mirrors ExpenseProfileModal.jsx's structure/styling.
- *
- * There is intentionally no "reason" field — the API/input form doesn't
- * carry one. The leave type (Sick/Vacation/Personal/Other) stands in for
- * it, shown as a plain detail row here (the editable dropdown lives in
- * the existing edit-leave dialog).
- */
+// Same shared label style as ExpenseProfileModal so both modals read
+// as one consistent system.
+const FIELD_LABEL =
+  "text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1";
+
 const LeaveProfileModal = ({
   open,
   onOpenChange,
@@ -45,8 +39,8 @@ const LeaveProfileModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="p-0 overflow-hidden sm:max-w-[480px]">
-        <div className="p-6 overflow-y-auto max-h-[85vh]">
+      <DialogContent className="w-[calc(100%-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden p-0 sm:w-[calc(100%-2rem)] sm:max-w-[480px]">
+        <div className="min-h-0 overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Leave Request</DialogTitle>
             <DialogDescription>
@@ -75,22 +69,22 @@ const LeaveProfileModal = ({
 
             {/* Leave balance */}
             <div className="rounded-lg bg-gray-50 p-4">
-              <p className="text-xs text-gray-500 mb-2">Leave Balance</p>
-              <div className="grid grid-cols-3 gap-3 mb-3">
-                <div>
-                  <p className="text-[11px] text-gray-500">Total</p>
+              <p className={FIELD_LABEL}>Leave Balance</p>
+              <div className="grid grid-cols-3 gap-3 mb-3 mt-2">
+                <div className="flex flex-col items-start">
+                  <p className="text-[11px] text-gray-500 mb-0.5">Total</p>
                   <p className="text-sm font-bold text-gray-900">
                     {balance.total}
                   </p>
                 </div>
-                <div>
-                  <p className="text-[11px] text-gray-500">Used</p>
+                <div className="flex flex-col items-start">
+                  <p className="text-[11px] text-gray-500 mb-0.5">Used</p>
                   <p className="text-sm font-bold text-gray-900">
                     {balance.used}
                   </p>
                 </div>
-                <div>
-                  <p className="text-[11px] text-gray-500">Remaining</p>
+                <div className="flex flex-col items-start">
+                  <p className="text-[11px] text-gray-500 mb-0.5">Remaining</p>
                   <p className="text-sm font-bold text-instattend-600">
                     {balance.remaining}
                   </p>
@@ -104,41 +98,44 @@ const LeaveProfileModal = ({
               </div>
             </div>
 
-            {/* Request details */}
-            <div className="grid grid-cols-2 gap-4 rounded-lg bg-gray-50 p-4">
-              <div>
-                <p className="text-xs text-gray-500 mb-0.5">Leave Type</p>
-                <p className="text-sm font-medium text-gray-800">
+            {/* Request details — items-start keeps every label/value
+                pair flush at the top of its cell, matching the Expense
+                modal's "Claim details" grid so a Badge cell never
+                pushes neighboring text out of line. */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-4 rounded-lg bg-gray-50 p-4">
+              <div className="flex flex-col items-start">
+                <p className={FIELD_LABEL}>Leave Type</p>
+                <p className="text-sm font-medium text-gray-800 leading-tight">
                   {leave.type}
                 </p>
               </div>
-              <div>
-                <p className="text-xs text-gray-500 mb-0.5">Status</p>
+              <div className="flex flex-col items-start">
+                <p className={FIELD_LABEL}>Status</p>
                 <Badge className={LEAVE_STATUS_BADGE_STYLES[leave.status]}>
                   {leave.status}
                 </Badge>
               </div>
-              <div>
-                <p className="text-xs text-gray-500 mb-0.5">From</p>
-                <p className="text-sm font-medium text-gray-800">
+              <div className="flex flex-col items-start">
+                <p className={FIELD_LABEL}>From</p>
+                <p className="text-sm font-medium text-gray-800 leading-tight">
                   {safeFormatDate(leave.startDate)}
                 </p>
               </div>
-              <div>
-                <p className="text-xs text-gray-500 mb-0.5">To</p>
-                <p className="text-sm font-medium text-gray-800">
+              <div className="flex flex-col items-start">
+                <p className={FIELD_LABEL}>To</p>
+                <p className="text-sm font-medium text-gray-800 leading-tight">
                   {safeFormatDate(leave.endDate)}
                 </p>
               </div>
-              <div>
-                <p className="text-xs text-gray-500 mb-0.5">Days</p>
-                <p className="text-sm font-medium text-gray-800">
+              <div className="flex flex-col items-start">
+                <p className={FIELD_LABEL}>Days</p>
+                <p className="text-sm font-medium text-gray-800 leading-tight">
                   {leave.days}
                 </p>
               </div>
-              <div>
-                <p className="text-xs text-gray-500 mb-0.5">Applied On</p>
-                <p className="text-sm font-medium text-gray-800">
+              <div className="flex flex-col items-start">
+                <p className={FIELD_LABEL}>Applied On</p>
+                <p className="text-sm font-medium text-gray-800 leading-tight">
                   {safeFormatDate(leave.appliedOn)}
                 </p>
               </div>
@@ -146,7 +143,7 @@ const LeaveProfileModal = ({
           </div>
 
           {leave.status === "Pending" && (
-            <DialogFooter className="pt-2">
+            <DialogFooter className="pt-4 mt-2 border-t border-gray-100">
               <Button
                 variant="outline"
                 disabled={isUpdating}

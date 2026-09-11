@@ -80,7 +80,7 @@ const Sidebar = ({ collapsed, onToggle, mobileOpen, onMobileClose }) => {
 
       <aside
         className={cn(
-          "border-r border-border bg-card flex flex-col overflow-hidden shadow-soft",
+          "flex shrink-0 flex-col overflow-hidden border-r border-border bg-card shadow-soft",
           // Mobile: fixed off-canvas drawer, full width up to 18rem/80vw,
           // slides in from the left.
           "fixed inset-y-0 left-0 z-50 w-72 max-w-[80vw] h-full",
@@ -103,7 +103,9 @@ const Sidebar = ({ collapsed, onToggle, mobileOpen, onMobileClose }) => {
           )}
           {effectiveCollapsed && !mobileOpen && (
             <div className="hidden lg:flex items-center mx-auto animate-scale-in">
-              <span className="text-2xl font-bold text-gradient-primary">IA</span>
+              <span className="text-2xl font-bold text-gradient-primary">
+                IA
+              </span>
             </div>
           )}
 
@@ -164,7 +166,9 @@ const Sidebar = ({ collapsed, onToggle, mobileOpen, onMobileClose }) => {
                 >
                   <Link
                     to={item.path}
-                    title={effectiveCollapsed && !mobileOpen ? item.name : undefined}
+                    title={
+                      effectiveCollapsed && !mobileOpen ? item.name : undefined
+                    }
                     className={cn(
                       "group relative flex items-center px-4 py-3 rounded-lg overflow-hidden",
                       "text-muted-foreground font-medium transition-all duration-300 ease-smooth",
@@ -181,7 +185,9 @@ const Sidebar = ({ collapsed, onToggle, mobileOpen, onMobileClose }) => {
                       )}
                     />
                     {(!effectiveCollapsed || mobileOpen) && (
-                      <span className="ml-4 whitespace-nowrap">{item.name}</span>
+                      <span className="ml-4 whitespace-nowrap">
+                        {item.name}
+                      </span>
                     )}
                   </Link>
                 </li>

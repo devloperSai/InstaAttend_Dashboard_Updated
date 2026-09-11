@@ -28,17 +28,16 @@ const MainLayout = ({ children }) => {
         mobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}
       />
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <main
-          key={collapsed ? "c" : "e"}
-          className="flex-1 overflow-y-auto animate-fade-in"
+          className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto animate-fade-in"
           style={{ backgroundColor: "hsl(var(--dashboard-bg))" }}
         >
           {/* Top row: hamburger (mobile/tablet only) on the left,
               profile capsule on the right. No header bar/border — this
               row shares the same dashboard-bg token as every page's
               content, so there's no seam above the content. */}
-          <div className="flex items-center justify-between px-4 md:px-6 pt-4 pb-2 gap-3">
+          <div className="flex items-center justify-between px-4 md:px-6 pt-2 pb-1 gap-3">
             <button
               type="button"
               onClick={() => setMobileOpen(true)}

@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "../components/ui/Select";
 import { Card, CardContent } from "../components/ui/card";
-import LeaveRow from "../components/ui/LeaveRow.jsx";
+import LeaveRow, { LeaveRowHeader } from "../components/ui/LeaveRow.jsx";
 import LeaveProfileModal from "../components/ui/LeaveProfileModal.jsx";
 import LeaveBalancePanel from "../components/ui/LeaveBalancePanel.jsx";
 import LeaveSkeleton from "../components/skeleton/LeaveSkeleton.jsx";
@@ -232,7 +232,7 @@ const Leave = () => {
       {isLoading ? (
         <LeaveSkeleton />
       ) : (
-        <div className="p-4 md:p-6">
+        <div className="min-w-0 overflow-x-hidden p-4 md:p-6">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-800">
               Leave Management
@@ -264,8 +264,8 @@ const Leave = () => {
             {/* ---- 2. Request list ---- */}
             <div className="lg:col-span-2">
               <div className="bg-white rounded-lg shadow-sm mb-6">
-                <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  <div className="relative max-w-md w-full">
+                <div className="flex flex-col items-stretch gap-4 border-b border-gray-200 p-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="relative w-full max-w-md lg:flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                     <Input
                       className="pl-10"
@@ -274,12 +274,12 @@ const Leave = () => {
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:flex-nowrap">
                     <Select
                       value={statusFilter}
                       onValueChange={setStatusFilter}
                     >
-                      <SelectTrigger className="w-[150px]">
+                      <SelectTrigger className="w-full min-w-[140px] sm:w-[150px]">
                         <SelectValue placeholder="All Status" />
                       </SelectTrigger>
                       <SelectContent>
@@ -291,7 +291,7 @@ const Leave = () => {
                     </Select>
 
                     <Select value={typeFilter} onValueChange={setTypeFilter}>
-                      <SelectTrigger className="w-[160px]">
+                      <SelectTrigger className="w-full min-w-[140px] sm:w-[160px]">
                         <SelectValue placeholder="All Types" />
                       </SelectTrigger>
                       <SelectContent>
@@ -320,13 +320,16 @@ const Leave = () => {
                       No leave records found
                     </div>
                   ) : (
-                    filteredLeaves.map((leave) => (
-                      <LeaveRow
-                        key={leave.id}
-                        leave={leave}
-                        onClick={() => openLeaveModal(leave)}
-                      />
-                    ))
+                    <>
+                      <LeaveRowHeader />
+                      {filteredLeaves.map((leave) => (
+                        <LeaveRow
+                          key={leave.id}
+                          leave={leave}
+                          onClick={() => openLeaveModal(leave)}
+                        />
+                      ))}
+                    </>
                   )}
                 </div>
               </div>

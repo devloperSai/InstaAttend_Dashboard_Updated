@@ -27,18 +27,12 @@ const isImageUrl = (url = "") =>
   /\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/i.test(url);
 const isPdfUrl = (url = "") => /\.pdf(\?.*)?$/i.test(url);
 
-/**
- * Detail modal for a single expense claim. Opened by clicking a row in
- * ExpenseRow. Shows the full profile + claim context, and — only when
- * the claim is still Pending — Approve/Reject actions.
- *
- * Clicking the receipt no longer navigates away in a new tab. Instead
- * the dialog widens and a preview panel slides in on the right, parallel
- * to the details panel, which — since the dialog stays centered via
- * translate(-50%, -50%) — makes the details panel appear to glide left
- * as the attachment opens beside it. Toggling it again (or picking a new
- * expense / closing the modal) smoothly collapses it back down.
- */
+// Shared label style so every field in the modal reads with the same
+// rhythm (uppercase, tracked, muted) instead of mismatched text-xs
+// colors between sections.
+const FIELD_LABEL =
+  "text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1";
+
 const ExpenseProfileModal = ({
   open,
   onOpenChange,
@@ -50,8 +44,6 @@ const ExpenseProfileModal = ({
 }) => {
   const [showAttachment, setShowAttachment] = useState(false);
 
-  // Collapse the preview once the close animation finishes, so it
-  // doesn't flash open again the next time this modal is opened.
   useEffect(() => {
     if (!open) {
       const timeout = setTimeout(() => setShowAttachment(false), 200);
@@ -59,7 +51,6 @@ const ExpenseProfileModal = ({
     }
   }, [open]);
 
-  // Reset the preview whenever a different expense claim is loaded in.
   useEffect(() => {
     setShowAttachment(false);
   }, [expense?.id]);
@@ -76,13 +67,13 @@ const ExpenseProfileModal = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
-          "p-0 overflow-hidden max-w-[95vw] transition-[max-width] duration-500 ease-in-out",
+          "w-[calc(100%-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden p-0 transition-[max-width] duration-500 ease-in-out sm:w-[calc(100%-2rem)] sm:max-w-[calc(100vw-2rem)]",
           showAttachment ? "sm:max-w-[880px]" : "sm:max-w-[480px]",
         )}
       >
-        <div className="flex w-full max-h-[85vh]">
+        <div className="flex max-h-[85vh] min-h-0 w-full flex-col sm:flex-row">
           {/* Details panel */}
-          <div className="w-full sm:w-[480px] shrink-0 overflow-y-auto p-6">
+          <div className="box-border min-h-0 w-full min-w-0 shrink-0 overflow-y-auto p-4 sm:w-[480px] sm:p-6">
             <DialogHeader>
               <DialogTitle>Expense Claim</DialogTitle>
               <DialogDescription>
@@ -112,28 +103,30 @@ const ExpenseProfileModal = ({
                 </div>
               </div>
 
-              {/* Claim details */}
-              <div className="grid grid-cols-2 gap-4 rounded-lg bg-gray-50 p-4">
-                <div>
-                  <p className="text-xs text-gray-500 mb-0.5">Amount</p>
-                  <p className="text-lg font-bold text-gray-900">
+              {/* Claim details — items-start keeps every cell's label
+                  flush with the top row, so a tall Status badge cell
+                  never pushes its neighbor's baseline out of line. */}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-4 rounded-lg bg-gray-50 p-4">
+                <div className="flex flex-col items-start">
+                  <p className={FIELD_LABEL}>Amount</p>
+                  <p className="text-lg font-bold text-gray-900 leading-tight">
                     ₹{Number(expense.expense_amount || 0).toLocaleString()}
                   </p>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-0.5">Category</p>
-                  <p className="text-sm font-medium text-gray-800">
+                <div className="flex flex-col items-start">
+                  <p className={FIELD_LABEL}>Category</p>
+                  <p className="text-sm font-medium text-gray-800 leading-tight">
                     {expense.expense_type}
                   </p>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-0.5">Date</p>
-                  <p className="text-sm font-medium text-gray-800">
+                <div className="flex flex-col items-start">
+                  <p className={FIELD_LABEL}>Date</p>
+                  <p className="text-sm font-medium text-gray-800 leading-tight">
                     {formatExpenseDate(expense.expense_date)}
                   </p>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-0.5">Status</p>
+                <div className="flex flex-col items-start">
+                  <p className={FIELD_LABEL}>Status</p>
                   <Badge
                     className={STATUS_BADGE_STYLES[expense.expense_status]}
                   >
@@ -144,8 +137,8 @@ const ExpenseProfileModal = ({
 
               {/* Note */}
               <div>
-                <p className="text-xs text-gray-500 mb-1">Note</p>
-                <p className="text-sm text-gray-700">
+                <p className={FIELD_LABEL}>Note</p>
+                <p className="text-sm text-gray-700 leading-relaxed">
                   {note || (
                     <span className="text-gray-400 italic">
                       No note provided
@@ -154,9 +147,9 @@ const ExpenseProfileModal = ({
                 </p>
               </div>
 
-              {/* Receipt — toggles the side preview instead of navigating */}
+              {/* Receipt */}
               <div>
-                <p className="text-xs text-gray-500 mb-1">Receipt</p>
+                <p className={FIELD_LABEL}>Receipt</p>
                 {hasReceipt ? (
                   <button
                     type="button"
@@ -180,7 +173,7 @@ const ExpenseProfileModal = ({
             </div>
 
             {expense.expense_status === "Pending" && (
-              <DialogFooter className="pt-2">
+              <DialogFooter className="mt-2 w-full min-w-0 justify-center border-t border-gray-100 pt-4 sm:justify-center sm:gap-2 sm:space-x-0">
                 <Button
                   variant="outline"
                   disabled={isUpdating}
@@ -202,15 +195,17 @@ const ExpenseProfileModal = ({
             )}
           </div>
 
-          {/* Attachment preview panel — slides in parallel to the details panel */}
+          {/* Attachment preview panel */}
           <div
             className={cn(
-              "shrink-0 overflow-hidden border-l border-gray-100 bg-gray-50 transition-[width,opacity] duration-500 ease-in-out",
-              showAttachment ? "w-[400px] opacity-100" : "w-0 opacity-0",
+              "shrink-0 overflow-hidden border-gray-100 bg-gray-50 transition-[width,height,max-height,opacity] duration-500 ease-in-out sm:border-l",
+              showAttachment
+                ? "h-[min(55vh,400px)] max-h-[400px] w-full opacity-100 sm:h-auto sm:w-[400px]"
+                : "h-0 max-h-0 w-full opacity-0 sm:w-0",
             )}
           >
             {hasReceipt && (
-              <div className="w-[400px] h-full flex flex-col p-4">
+              <div className="flex h-full min-h-0 w-full flex-col p-4 sm:w-[400px]">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-semibold text-gray-700">
                     Receipt Preview
