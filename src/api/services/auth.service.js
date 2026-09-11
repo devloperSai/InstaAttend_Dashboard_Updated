@@ -18,9 +18,13 @@ export const authService = {
         password,
         imei_number: "admin_login",
       });
-      const data = response.data?.data;
+      const data = response.data?.data ?? response.data;
 
-      if (!data?.user?.designation?.admin_access) {
+      if (!data?.token || !data?.user) {
+        throw new Error("The login response did not include a token and user.");
+      }
+
+      if (data.user.designation && !data.user.designation.admin_access) {
         return { unauthorized: true };
       }
 

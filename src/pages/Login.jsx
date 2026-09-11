@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -37,6 +37,7 @@ const loginFormSchema = z.object({
 });
 
 const Login = () => {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [showUnauthorized, setShowUnauthorized] = useState(false);
@@ -53,7 +54,7 @@ const Login = () => {
     return <Navigate to="/" />;
   }
 
-  const onSubmit = async (data) =>  {
+  const onSubmit = async (data) => {
     try {
       setIsLoggingIn(true);
       const result = await authService.login(data.email, data.password);
@@ -63,8 +64,9 @@ const Login = () => {
         return;
       }
 
-      // navigate to dashboard if login successful
-      // navigate("/dashboard");
+      if (result?.success) {
+        navigate("/", { replace: true });
+      }
     } catch (error) {
       console.error("Login failed", error);
     } finally {
@@ -75,16 +77,11 @@ const Login = () => {
   const togglePassword = () => setShowPassword(!showPassword);
 
   return (
-    <div
-      className="relative min-h-screen flex items-center justify-center lg:justify-start overflow-hidden"
-    >
+    <div className="relative min-h-screen flex items-center justify-center lg:justify-start overflow-hidden">
       {/* Background photo — kept mostly crisp (only a whisper of blur) so
           the scene reads clearly, the way a premium product screen would.
           Data/text on it is intentionally still slightly visible, per design. */}
-      <div
-        className="absolute inset-0 overflow-hidden"
-        aria-hidden="true"
-      >
+      <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
         <div
           className="absolute inset-0 scale-105 blur-[6px]"
           style={{
@@ -134,7 +131,10 @@ const Login = () => {
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
                 <FormField
                   control={form.control}
                   name="email"
@@ -244,8 +244,8 @@ const Login = () => {
 
         {/*Unauthorized Dialoge*/}
         <UnauthorizedModal
-            isOpen={showUnauthorized}
-            onClose={() => setShowUnauthorized(false)}
+          isOpen={showUnauthorized}
+          onClose={() => setShowUnauthorized(false)}
         />
       </div>
     </div>
