@@ -6,7 +6,6 @@ const axiosInstance = axios.create({
   timeout: 30000,
   headers: {
     "Content-Type": "application/json",
-    
   },
 });
 
@@ -40,8 +39,11 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   (error) => {
-    if (error.response && error.response.status === 401) {
+    const isLoginRequest = error.config?.url === apiUrl.auth.login;
+
+    if (error.response?.status === 401 && !isLoginRequest) {
       localStorage.removeItem("token");
+      localStorage.removeItem("user");
       window.location.href = "/login";
     }
     return Promise.reject(error);

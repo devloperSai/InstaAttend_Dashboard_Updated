@@ -41,6 +41,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [showUnauthorized, setShowUnauthorized] = useState(false);
+  const [loginError, setLoginError] = useState("");
 
   const form = useForm({
     resolver: zodResolver(loginFormSchema),
@@ -57,6 +58,7 @@ const Login = () => {
   const onSubmit = async (data) => {
     try {
       setIsLoggingIn(true);
+      setLoginError("");
       const result = await authService.login(data.email, data.password);
 
       if (result?.unauthorized) {
@@ -69,6 +71,11 @@ const Login = () => {
       }
     } catch (error) {
       console.error("Login failed", error);
+      setLoginError(
+        error.response?.data?.message ||
+          error.message ||
+          "Unable to sign in. Please check your credentials and try again.",
+      );
     } finally {
       setIsLoggingIn(false);
     }
@@ -135,6 +142,14 @@ const Login = () => {
                 onSubmit={form.handleSubmit(onSubmit)}
                 className="space-y-4"
               >
+                {loginError && (
+                  <p
+                    role="alert"
+                    className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                  >
+                    {loginError}
+                  </p>
+                )}
                 <FormField
                   control={form.control}
                   name="email"

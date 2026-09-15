@@ -19,17 +19,19 @@ export const authService = {
         imei_number: "admin_login",
       });
       const data = response.data?.data ?? response.data;
+      const token = data?.token ?? data?.accessToken ?? data?.access_token;
+      const user = data?.user ?? data?.userData;
 
-      if (!data?.token || !data?.user) {
+      if (!token || !user) {
         throw new Error("The login response did not include a token and user.");
       }
 
-      if (data.user.designation && !data.user.designation.admin_access) {
+      if (user.designation && !user.designation.admin_access) {
         return { unauthorized: true };
       }
 
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
 
       toast.success("Login successful!");
       return { success: true, data: response.data };

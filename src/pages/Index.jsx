@@ -1,5 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import {
+  endOfMonth,
+  format,
+  isSameDay,
+  startOfDay,
+  startOfMonth,
+} from "date-fns";
 import MainLayout from "../components/layout/MainLayout";
 import { dashboardService } from "../api/services/dashboard.service.js";
 import { authService } from "../api/services/auth.service";
@@ -40,12 +46,16 @@ const formatToday = () =>
     day: "numeric",
   });
 
+const attendanceDateKey = (date) => String(date).slice(0, 10);
+
 const Index = () => {
-  const navigate = useNavigate();
   const [stat, setStat] = useState({});
   const [attendanceData, setAttendanceData] = useState([]);
   const [activities, setActivities] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [attendanceMap, setAttendanceMap] = useState(new Map());
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [attendanceMonth, setAttendanceMonth] = useState(new Date());
 
   const fetchStats = useCallback(async () => {
     try {
@@ -90,11 +100,87 @@ const Index = () => {
     fetchStats();
   }, [fetchStats]);
 
+  const fetchAttendanceCalendar = useCallback(async (monthAnchor) => {
+    try {
+      const data = await dashboardService.getAttendanceCalendar(
+        "custom",
+        format(startOfMonth(monthAnchor), "yyyy-MM-dd"),
+        format(endOfMonth(monthAnchor), "yyyy-MM-dd"),
+      );
+      const nextMap = new Map();
+      (data?.records || []).forEach((record) => {
+        nextMap.set(attendanceDateKey(record.date), {
+          presentCount: record.presentCount ?? 0,
+          absentCount: record.absentCount ?? 0,
+          halfDayCount: record.halfDayCount ?? 0,
+          leaveCount: record.leaveCount ?? 0,
+        });
+      });
+      setAttendanceMap(nextMap);
+    } catch (error) {
+      console.error("Error fetching dashboard attendance calendar", error);
+      setAttendanceMap(new Map());
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAttendanceCalendar(attendanceMonth);
+  }, [attendanceMonth, fetchAttendanceCalendar]);
+
   const currentUser = authService.getCurrentUser();
   const username = currentUser ? currentUser.username : "User";
   const todayFormatted = formatToday();
 
-  const goToCalendarPage = () => navigate("/calendar");
+  const activeDate = selectedDate || startOfDay(new Date());
+  const activeDateKey = format(activeDate, "yyyy-MM-dd");
+  const activeIsToday = isSameDay(activeDate, new Date());
+  const activeStats = activeIsToday ? null : attendanceMap.get(activeDateKey);
+  const hasSelectedDateData = Boolean(activeStats);
+  const activeDateLabel = activeIsToday
+    ? "Today"
+    : format(activeDate, "MMMM d, yyyy");
+  const selectedAttendance = [
+    {
+      percentage: hasSelectedDateData
+        ? Math.round(
+            (activeStats.presentCount / (stat.totalEmployees || 1)) * 100,
+          )
+        : 0,
+      color: statusColors.present,
+      label: "Present",
+      value: hasSelectedDateData ? activeStats.presentCount : "No data",
+    },
+    {
+      percentage: hasSelectedDateData
+        ? Math.round(
+            (activeStats.halfDayCount / (stat.totalEmployees || 1)) * 100,
+          )
+        : 0,
+      color: statusColors.halfDay,
+      label: "Half Day",
+      value: hasSelectedDateData ? activeStats.halfDayCount : "No data",
+    },
+    {
+      percentage: hasSelectedDateData
+        ? Math.round(
+            (activeStats.absentCount / (stat.totalEmployees || 1)) * 100,
+          )
+        : 0,
+      color: statusColors.absent,
+      label: "Absent",
+      value: hasSelectedDateData ? activeStats.absentCount : "No data",
+    },
+    {
+      percentage: hasSelectedDateData
+        ? Math.round(
+            (activeStats.leaveCount / (stat.totalEmployees || 1)) * 100,
+          )
+        : 0,
+      color: statusColors.leave,
+      label: "On Leave",
+      value: hasSelectedDateData ? activeStats.leaveCount : "No data",
+    },
+  ];
 
   return (
     <MainLayout>
@@ -127,10 +213,12 @@ const Index = () => {
                 <CardHeader className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-white/50 pb-4">
                   <div>
                     <CardTitle className="text-base md:text-lg font-semibold text-text-primary/90">
-                      Today's Attendance Status
+                      {activeDateLabel} Attendance Status
                     </CardTitle>
                     <CardDescription className="text-text-muted mt-0.5">
-                      {todayFormatted}
+                      {activeIsToday
+                        ? `${todayFormatted} (today's data will be reflected at end of the day)`
+                        : activeDateLabel}
                     </CardDescription>
                   </div>
                   <div className="text-sm text-text-muted px-3 py-1.5 rounded-full border border-white/60 bg-white/30">
@@ -142,32 +230,7 @@ const Index = () => {
                 </CardHeader>
                 <CardContent className="relative pt-4">
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 justify-items-center">
-                    {[
-                      {
-                        percentage: stat.presentPercentage,
-                        color: statusColors.present,
-                        label: "Present",
-                        value: stat.presentToday,
-                      },
-                      {
-                        percentage: stat.halfDayPercentage,
-                        color: statusColors.halfDay,
-                        label: "Half Day",
-                        value: stat.halfDayToday,
-                      },
-                      {
-                        percentage: stat.absentPercentage,
-                        color: statusColors.absent,
-                        label: "Absent",
-                        value: stat.absentToday,
-                      },
-                      {
-                        percentage: stat.leavePercentage,
-                        color: statusColors.leave,
-                        label: "On Leave",
-                        value: stat.onLeave,
-                      },
-                    ].map((s) => (
+                    {selectedAttendance.map((s) => (
                       <div
                         key={s.label}
                         className="flex w-full justify-center p-3 rounded-xl border shadow-sm transition-all duration-300 ease-smooth hover:-translate-y-0.5"
@@ -354,22 +417,7 @@ const Index = () => {
 
             {/* ---- Right rail ---- */}
             <div className="space-y-4 md:space-y-5">
-              {/* Entire card is a click-target that routes to the full
-                  Calendar page — except the month prev/next arrows inside
-                  MiniCalendar, which stop propagation so browsing months
-                  doesn't trigger the redirect. */}
-              <Card
-                onClick={goToCalendarPage}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    goToCalendarPage();
-                  }
-                }}
-                className="glass-panel border border-white/60 p-5 cursor-pointer transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:shadow-md"
-              >
+              <Card className="glass-panel border border-white/60 p-5">
                 <div className="relative flex items-center gap-2 mb-4 pb-3 border-b border-white/50">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -386,7 +434,11 @@ const Index = () => {
                     Calendar
                   </span>
                 </div>
-                <MiniCalendar />
+                <MiniCalendar
+                  selectedDate={selectedDate}
+                  onSelectDate={setSelectedDate}
+                  onMonthChange={setAttendanceMonth}
+                />
               </Card>
 
               <Card className="glass-panel border border-white/60 p-5">
