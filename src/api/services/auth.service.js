@@ -19,17 +19,29 @@ export const authService = {
         imei_number: "admin_login",
       });
       const data = response.data?.data ?? response.data;
+      const token = data?.token ?? data?.accessToken ?? data?.access_token;
+      const user = data?.user ?? data?.userData;
 
-      if (!data?.token || !data?.user) {
+      if (!token || !user) {
         throw new Error("The login response did not include a token and user.");
       }
 
-      if (data.user.designation && !data.user.designation.admin_access) {
+      if (user.designation && !user.designation.admin_access) {
         return { unauthorized: true };
       }
 
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+
+      // The org context comes back on the user object at login
+      // (user.organization_id) and must be sent as X-Organization-Id
+      // on every subsequent request — apiClient's request interceptor
+      // reads it straight from this key. Stored separately (not just
+      // parsed out of the "user" blob each time) so the interceptor's
+      // lookup stays a cheap, direct localStorage.getItem call.
+      if (user.organization_id) {
+        localStorage.setItem("organization_id", user.organization_id);
+      }
 
       toast.success("Login successful!");
       return { success: true, data: response.data };
@@ -99,11 +111,13 @@ export const authService = {
   },
 
   /**
-   * Logs the user out by removing token and user data from localStorage.
+   * Logs the user out by removing token, user data, and org context
+   * from localStorage.
    */
   logout: () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("organization_id");
   },
 
   /**
@@ -121,6 +135,17 @@ export const authService = {
       }
     }
     return null;
+  },
+
+  /**
+   * Returns the current organization id sent as X-Organization-Id on
+   * every API request. Exposed for any UI that needs to display org
+   * context (e.g. a company name badge) without re-reading the full
+   * user object.
+   * @returns {string|null}
+   */
+  getOrganizationId: () => {
+    return localStorage.getItem("organization_id");
   },
 
   /**

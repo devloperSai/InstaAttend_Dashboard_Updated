@@ -1,9 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { hexToRgba, chartTooltipStyle, statusColors } from "../lib/theme.js";
 import MainLayout from "../components/layout/MainLayout";
 import { dashboardService } from "../api/services/dashboard.service.js";
 import { authService } from "../api/services/auth.service";
-import { chartTooltipStyle, statusColors, hexToRgba } from "../lib/theme.js";
 import {
   Card,
   CardContent,
@@ -26,22 +25,7 @@ import MiniCalendar from "../components/ui/MiniCalendar.jsx";
 import CircularStat from "../components/ui/CircularStat.jsx";
 import RecentActivitiesCard from "../components/ui/RecentActivitiesCard.jsx";
 
-const parsePercent = (value) => {
-  if (value === undefined || value === null) return 0;
-  const n = parseFloat(String(value).replace("%", "").trim());
-  return isNaN(n) ? 0 : n;
-};
-
-const formatToday = () =>
-  new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-
 const Index = () => {
-  const navigate = useNavigate();
   const [stat, setStat] = useState({});
   const [attendanceData, setAttendanceData] = useState([]);
   const [activities, setActivities] = useState([]);
@@ -51,33 +35,13 @@ const Index = () => {
     try {
       const data = await dashboardService.getStats();
 
-      const dailyStats = data.dailyStats || [];
-      const todayStats = dailyStats[dailyStats.length - 1] || {};
-
-      const totalEmployees = data.totalEmployees || 0;
-      const halfDayToday = todayStats.halfDay ?? todayStats.half_day ?? 0;
-      const absentToday = todayStats.absent ?? 0;
-
       setStat({
-        totalEmployees,
-        presentToday: data.presentToday || 0,
-        onLeave: data.onLeave || 0,
-        avgWorkingHours: data.avgWorkingHours || 0,
-        presentPercentage: parsePercent(data.presentPercentage),
-        leavePercentage: parsePercent(data.leavePercentage),
-        workingHoursChange: data.workingHoursChange || "",
-        halfDayToday,
-        absentToday,
-        halfDayPercentage:
-          totalEmployees > 0
-            ? Math.round((halfDayToday / totalEmployees) * 100)
-            : 0,
-        absentPercentage:
-          totalEmployees > 0
-            ? Math.round((absentToday / totalEmployees) * 100)
-            : 0,
+        totalEmployees: data.totalEmployees ?? 0,
+        activeEmployees: data.activeEmployees ?? 0,
+        inactiveEmployees: data.inactiveEmployees ?? 0,
+        pendingEnrollmentRequests: data.pendingEnrollmentRequests ?? 0,
       });
-      setAttendanceData(dailyStats);
+      setAttendanceData(data.dailyStats || []);
       setActivities(Array.isArray(data.activityLog) ? data.activityLog : []);
     } catch (error) {
       console.error("Error fetching stats", error);
@@ -92,9 +56,39 @@ const Index = () => {
 
   const currentUser = authService.getCurrentUser();
   const username = currentUser ? currentUser.username : "User";
-  const todayFormatted = formatToday();
-
-  const goToCalendarPage = () => navigate("/calendar");
+  const totalEmployees = stat.totalEmployees || 0;
+  const employeeStats = [
+    {
+      percentage: totalEmployees ? 100 : 0,
+      color: statusColors.present,
+      label: "Total Employees",
+      value: stat.totalEmployees,
+    },
+    {
+      percentage: totalEmployees
+        ? Math.round((stat.activeEmployees / totalEmployees) * 100)
+        : 0,
+      color: statusColors.present,
+      label: "Active Employees",
+      value: stat.activeEmployees,
+    },
+    {
+      percentage: totalEmployees
+        ? Math.round((stat.inactiveEmployees / totalEmployees) * 100)
+        : 0,
+      color: statusColors.absent,
+      label: "Inactive Employees",
+      value: stat.inactiveEmployees,
+    },
+    {
+      percentage: totalEmployees
+        ? Math.round((stat.pendingEnrollmentRequests / totalEmployees) * 100)
+        : 0,
+      color: statusColors.leave,
+      label: "Enrollment Requests",
+      value: stat.pendingEnrollmentRequests,
+    },
+  ];
 
   return (
     <MainLayout>
@@ -122,65 +116,40 @@ const Index = () => {
                 </div>
               </div>
 
-              {/* Today's Attendance Status */}
+              {/* Employee Summary */}
               <Card className="glass-panel border border-white/60">
-                <CardHeader className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-white/50 pb-4">
+                <CardHeader className="relative flex flex-col gap-2 border-b border-white/50 pb-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <CardTitle className="text-base md:text-lg font-semibold text-text-primary/90">
-                      Today's Attendance Status
+                    <CardTitle className="text-base font-semibold text-text-primary/90 md:text-lg">
+                      Employee Summary
                     </CardTitle>
-                    <CardDescription className="text-text-muted mt-0.5">
-                      {todayFormatted}
+                    <CardDescription className="mt-0.5 text-text-muted">
+                      Current employee status overview
                     </CardDescription>
                   </div>
-                  <div className="text-sm text-text-muted px-3 py-1.5 rounded-full border border-white/60 bg-white/30">
-                    <span className="font-semibold text-text-primary tabular-nums">
+                  <div className="rounded-full border border-white/60 bg-white/30 px-3 py-1.5 text-sm text-text-muted">
+                    <span className="font-semibold tabular-nums text-text-primary">
                       {stat.totalEmployees}
                     </span>{" "}
                     total employees
                   </div>
                 </CardHeader>
                 <CardContent className="relative pt-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 justify-items-center">
-                    {[
-                      {
-                        percentage: stat.presentPercentage,
-                        color: statusColors.present,
-                        label: "Present",
-                        value: stat.presentToday,
-                      },
-                      {
-                        percentage: stat.halfDayPercentage,
-                        color: statusColors.halfDay,
-                        label: "Half Day",
-                        value: stat.halfDayToday,
-                      },
-                      {
-                        percentage: stat.absentPercentage,
-                        color: statusColors.absent,
-                        label: "Absent",
-                        value: stat.absentToday,
-                      },
-                      {
-                        percentage: stat.leavePercentage,
-                        color: statusColors.leave,
-                        label: "On Leave",
-                        value: stat.onLeave,
-                      },
-                    ].map((s) => (
+                  <div className="grid grid-cols-2 justify-items-center gap-3 sm:grid-cols-4">
+                    {employeeStats.map((item) => (
                       <div
-                        key={s.label}
-                        className="flex w-full justify-center p-3 rounded-xl border shadow-sm transition-all duration-300 ease-smooth hover:-translate-y-0.5"
+                        key={item.label}
+                        className="flex w-full justify-center rounded-xl border p-3 shadow-sm transition-all duration-300 ease-smooth hover:-translate-y-0.5"
                         style={{
-                          backgroundColor: hexToRgba(s.color, 0.14),
-                          borderColor: hexToRgba(s.color, 0.45),
+                          backgroundColor: hexToRgba(item.color, 0.14),
+                          borderColor: hexToRgba(item.color, 0.45),
                         }}
                       >
                         <CircularStat
-                          percentage={s.percentage}
-                          color={s.color}
-                          label={s.label}
-                          value={s.value}
+                          percentage={item.percentage}
+                          color={item.color}
+                          label={item.label}
+                          value={item.value}
                         />
                       </div>
                     ))}
@@ -354,23 +323,8 @@ const Index = () => {
 
             {/* ---- Right rail ---- */}
             <div className="space-y-4 md:space-y-5">
-              {/* Entire card is a click-target that routes to the full
-                  Calendar page — except the month prev/next arrows inside
-                  MiniCalendar, which stop propagation so browsing months
-                  doesn't trigger the redirect. */}
-              <Card
-                onClick={goToCalendarPage}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    goToCalendarPage();
-                  }
-                }}
-                className="glass-panel border border-white/60 p-5 cursor-pointer transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:shadow-md"
-              >
-                <div className="relative flex items-center gap-2 mb-4 pb-3 border-b border-white/50">
+              <Card className="glass-panel border border-white/60 p-5">
+                <div className="relative mb-4 flex items-center gap-2 border-b border-white/50 pb-3">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-4 w-4 text-primary"

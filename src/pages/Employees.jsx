@@ -299,6 +299,7 @@ const Employees = () => {
               ref={filterPanelRef}
             >
               <button
+                type="button"
                 onClick={() => setShowFilterOptions((prev) => !prev)}
                 className="flex items-center justify-center gap-2 bg-white border border-gray-300 px-4 py-2 rounded-full text-sm sm:text-base font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition-all"
               >
@@ -312,12 +313,13 @@ const Employees = () => {
               </button>
 
               {showFilterOptions && (
-                <div className="absolute right-0 sm:left-0 z-30 mt-2 w-72 sm:w-80 bg-white border rounded-xl shadow-2xl p-4 space-y-4">
+                <div className="absolute right-0 z-30 mt-2 w-[min(20rem,calc(100vw-2rem))] bg-white border rounded-xl shadow-2xl p-4 space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-gray-700">
                       Filters
                     </h3>
                     <button
+                      type="button"
                       onClick={() => setShowFilterOptions(false)}
                       className="text-gray-400 hover:text-gray-600"
                     >
@@ -405,6 +407,7 @@ const Employees = () => {
                         <option value="designation">Designation</option>
                       </select>
                       <button
+                        type="button"
                         onClick={() =>
                           setSortOrder((prev) =>
                             prev === "asc" ? "desc" : "asc",
@@ -424,6 +427,7 @@ const Employees = () => {
 
                   <div className="flex justify-end pt-1 border-t border-gray-100">
                     <button
+                      type="button"
                       onClick={clearFilters}
                       className="text-sm text-gray-500 hover:text-instattend-600 font-medium px-2 py-1"
                     >

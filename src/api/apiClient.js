@@ -6,16 +6,25 @@ const axiosInstance = axios.create({
   timeout: 30000,
   headers: {
     "Content-Type": "application/json",
-    
   },
 });
 
-// Request interceptor for adding token
+// Request interceptor for adding token + organization id
 axiosInstance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    // Every authenticated request must carry the org context returned
+    // at login (user.organization_id) so the backend can scope data
+    // correctly. Read fresh from localStorage on every request instead
+    // of caching it in module state, since it can change on a fresh
+    // login without a full page reload.
+    const organizationId = localStorage.getItem("organization_id");
+    if (organizationId) {
+      config.headers["X-Organization-Id"] = organizationId;
     }
 
     // If the payload is FormData (file uploads, multipart forms),
@@ -40,8 +49,12 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   (error) => {
-    if (error.response && error.response.status === 401) {
+    const isLoginRequest = error.config?.url === apiUrl.auth.login;
+
+    if (error.response?.status === 401 && !isLoginRequest) {
       localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      localStorage.removeItem("organization_id");
       window.location.href = "/login";
     }
     return Promise.reject(error);

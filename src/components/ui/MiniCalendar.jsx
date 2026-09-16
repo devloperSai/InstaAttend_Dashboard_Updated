@@ -41,23 +41,16 @@ const DAY_VARIANT_CLASSES = {
 /**
  * Compact month calendar for the dashboard's top-right rail.
  *
- * Purely visual — no API call and no per-day attendance data. It only
- * needs today's date to compute which tile is "today," which days are
- * Sundays, and which have already passed, all client-side.
+ * The parent supplies the selected-day and month-change callbacks. Attendance
+ * data remains owned by the dashboard so this widget stays presentational.
  *
- * This widget no longer owns any navigation itself: the parent Card in
- * index.jsx is the click-target that routes to the full Calendar page.
- * The ONLY interaction that stays local is browsing months. To make sure
- * that never leaks into the parent's redirect, the whole month-nav row
- * (both arrows AND the month label between them) is wrapped in a single
- * container with stopPropagation on it — not just the buttons — so a
- * click anywhere in that row, including directly on the label or the
- * chevron icons themselves, never reaches the Card's onClick.
+ * Month navigation and day selection are handled locally so selecting a day
+ * never triggers navigation away from the dashboard.
  *
  * Renders as plain content inside the parent's glass-panel Card (no
  * background of its own) so it inherits the dashboard's theme.
  */
-const MiniCalendar = () => {
+const MiniCalendar = ({ selectedDate, onSelectDate, onMonthChange }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const today = startOfDay(new Date());
 
@@ -95,7 +88,11 @@ const MiniCalendar = () => {
           onClick={(e) => e.stopPropagation()}
         >
           <button
-            onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
+            onClick={() => {
+              const nextMonth = subMonths(currentMonth, 1);
+              setCurrentMonth(nextMonth);
+              onMonthChange?.(nextMonth);
+            }}
             className="p-1 rounded border border-transparent hover:border-border hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
             aria-label="Previous month"
             type="button"
@@ -106,7 +103,11 @@ const MiniCalendar = () => {
             {format(currentMonth, "MMMM yyyy")}
           </span>
           <button
-            onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
+            onClick={() => {
+              const nextMonth = addMonths(currentMonth, 1);
+              setCurrentMonth(nextMonth);
+              onMonthChange?.(nextMonth);
+            }}
             className="p-1 rounded border border-transparent hover:border-border hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
             aria-label="Next month"
             type="button"
@@ -115,8 +116,8 @@ const MiniCalendar = () => {
           </button>
         </div>
 
-        {/* Plain label, not a button — clicking here bubbles up to the
-            parent Card's onClick and routes to the full Calendar page. */}
+        {/* The label is informational; only month navigation and day cells
+          are interactive. */}
         <span className="px-2 py-1 rounded-full border border-primary/30 bg-primary/10 text-[11px] font-bold uppercase tracking-wide text-primary shrink-0">
           Today
         </span>
@@ -150,14 +151,23 @@ const MiniCalendar = () => {
 
           return (
             <div key={key} className="flex items-center justify-center">
-              <span
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelectDate?.(d);
+                }}
+                aria-label={`View attendance for ${format(d, "MMMM d, yyyy")}`}
                 className={cn(
-                  "flex items-center justify-center aspect-square w-full rounded-lg text-[11px] font-medium transition-colors duration-200 ease-smooth",
+                  "flex items-center justify-center aspect-square w-full rounded-lg text-[11px] font-medium transition-colors duration-200 ease-smooth hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                  selectedDate &&
+                    isSameDay(d, selectedDate) &&
+                    "ring-2 ring-primary",
                   DAY_VARIANT_CLASSES[variant],
                 )}
               >
                 {format(d, "d")}
-              </span>
+              </button>
             </div>
           );
         })}

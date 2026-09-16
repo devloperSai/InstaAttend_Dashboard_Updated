@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
 import {
   Search,
-  Filter,
   ClipboardList,
   Clock,
   CheckCircle2,
@@ -20,7 +19,6 @@ import {
 import { Card, CardContent } from "../components/ui/card";
 import LeaveRow, { LeaveRowHeader } from "../components/ui/LeaveRow.jsx";
 import LeaveProfileModal from "../components/ui/LeaveProfileModal.jsx";
-import LeaveBalancePanel from "../components/ui/LeaveBalancePanel.jsx";
 import LeaveSkeleton from "../components/skeleton/LeaveSkeleton.jsx";
 
 // Leave type is not a free-text "reason" in the API/input form — it's
@@ -40,11 +38,6 @@ const mapLeave = (leave) => {
   }
 
   const user = leave.user || {};
-  // department_name / designation_name / leave_balance aren't in the API
-  // response yet — fall back to nested objects if present, else "N/A" / 0s,
-  // so the UI never breaks once the backend adds them.
-  const rawBalance = user.leave_balance || {};
-
   return {
     id: leave.id,
     employeeId: leave.user_id,
@@ -58,29 +51,8 @@ const mapLeave = (leave) => {
     days: diffDays,
     status: leave.status,
     appliedOn: leave.createdAt || null,
-    leaveBalance: {
-      total: rawBalance.total ?? 0,
-      used: rawBalance.used ?? 0,
-      remaining: rawBalance.remaining ?? 0,
-    },
   };
 };
-
-// Applies a +/- day delta to every leave record belonging to the same
-// employee, so the balance panel (which reads from any of that
-// employee's rows) always stays in sync after an approve/reject.
-const applyBalanceDelta = (leavesList, employeeId, deltaDays) =>
-  leavesList.map((l) => {
-    if (l.employeeId !== employeeId) return l;
-    return {
-      ...l,
-      leaveBalance: {
-        ...l.leaveBalance,
-        used: Math.max(0, l.leaveBalance.used + deltaDays),
-        remaining: Math.max(0, l.leaveBalance.remaining - deltaDays),
-      },
-    };
-  });
 
 const Leave = () => {
   const [leaves, setLeaves] = useState([]);
@@ -145,31 +117,31 @@ const Leave = () => {
     },
   ];
 
-  // ---- 4. Leave balance panel data (one entry per employee) ----
-  const employeeBalances = useMemo(() => {
-    const map = new Map();
-    leaves.forEach((l) => {
-      if (!map.has(l.employeeId)) {
-        map.set(l.employeeId, {
-          id: l.employeeId,
-          name: l.employeeName,
-          leaveBalance: l.leaveBalance,
-        });
-      }
-    });
-    return Array.from(map.values());
-  }, [leaves]);
-
   // ---- Filters ----
   const filteredLeaves = leaves.filter((leave) => {
     const term = searchTerm.trim().toLowerCase();
     const matchesSearch =
-      !term || leave.employeeName?.toLowerCase().includes(term);
+      !term ||
+      [leave.employeeName, leave.role, leave.department, leave.type]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(term));
     const matchesStatus =
-      statusFilter === "all" || leave.status === statusFilter;
-    const matchesType = typeFilter === "all" || leave.type === typeFilter;
+      statusFilter === "all" ||
+      String(leave.status).toLowerCase() === statusFilter.toLowerCase();
+    const matchesType =
+      typeFilter === "all" ||
+      String(leave.type).toLowerCase() === typeFilter.toLowerCase();
     return matchesSearch && matchesStatus && matchesType;
   });
+
+  const hasActiveFilters =
+    searchTerm.trim() !== "" || statusFilter !== "all" || typeFilter !== "all";
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("all");
+    setTypeFilter("all");
+  };
 
   const openLeaveModal = (leave) => {
     setSelectedLeave(leave);
@@ -187,16 +159,11 @@ const Leave = () => {
     setUpdatingId(selectedLeave.id);
     try {
       await leaveService.approveLeave(selectedLeave.id);
-      setLeaves((prev) => {
-        const updated = prev.map((l) =>
+      setLeaves((prev) =>
+        prev.map((l) =>
           l.id === selectedLeave.id ? { ...l, status: "Approved" } : l,
-        );
-        return applyBalanceDelta(
-          updated,
-          selectedLeave.employeeId,
-          selectedLeave.days,
-        );
-      });
+        ),
+      );
       setSelectedLeave((prev) =>
         prev ? { ...prev, status: "Approved" } : prev,
       );
@@ -260,9 +227,9 @@ const Leave = () => {
             ))}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-6">
             {/* ---- 2. Request list ---- */}
-            <div className="lg:col-span-2">
+            <div>
               <div className="bg-white rounded-lg shadow-sm mb-6">
                 <div className="flex flex-col items-stretch gap-4 border-b border-gray-200 p-4 lg:flex-row lg:items-center lg:justify-between">
                   <div className="relative w-full max-w-md lg:flex-1">
@@ -306,10 +273,16 @@ const Leave = () => {
 
                     <button
                       type="button"
-                      className="flex items-center justify-center h-10 w-10 rounded-md border border-input hover:bg-accent"
-                      title="Filters"
+                      className={`h-10 rounded-md border px-3 text-sm font-medium transition-all ${
+                        hasActiveFilters
+                          ? "border-gray-800 bg-gray-800 text-white hover:bg-gray-700"
+                          : "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 blur-[1px]"
+                      }`}
+                      title="Clear filters"
+                      onClick={clearFilters}
+                      disabled={!hasActiveFilters}
                     >
-                      <Filter className="h-4 w-4" />
+                      Clear all
                     </button>
                   </div>
                 </div>
@@ -333,11 +306,6 @@ const Leave = () => {
                   )}
                 </div>
               </div>
-            </div>
-
-            {/* ---- 4. Leave balance panel ---- */}
-            <div>
-              <LeaveBalancePanel employees={employeeBalances} />
             </div>
           </div>
         </div>

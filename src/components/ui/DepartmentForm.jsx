@@ -23,11 +23,30 @@ import { Input } from "./input";
 import { Button } from "./button";
 import { Textarea } from "./textarea";
 
+// Coordinates must look like a real "lat,long" pair — this is now a
+// REQUIRED field (previously optional), so an empty value fails too.
+const COORDINATES_REGEX = /^-?\d{1,3}(\.\d+)?,\s*-?\d{1,3}(\.\d+)?$/;
+
 const departmentSchema = z.object({
-  name: z.string().min(1, "Department name is required"),
-  coordinates: z.string().optional(),
-  address: z.string().optional(),
-  lead: z.string().optional(),
+  name: z
+    .string()
+    .min(1, "Department name is required")
+    .max(100, "Must be under 100 characters"),
+  coordinates: z
+    .string()
+    .min(1, "Latitude-longitude is required")
+    .refine(
+      (val) => COORDINATES_REGEX.test(val.trim()),
+      "Use the format: latitude,longitude (e.g. 12.9716,77.5946)",
+    ),
+  address: z
+    .string()
+    .min(1, "Address is required")
+    .max(200, "Must be under 200 characters"),
+  lead: z
+    .string()
+    .min(1, "Department lead is required")
+    .max(100, "Must be under 100 characters"),
 });
 
 const DepartmentForm = ({ open, onOpenChange, department, onSubmit }) => {
@@ -44,6 +63,10 @@ const DepartmentForm = ({ open, onOpenChange, department, onSubmit }) => {
 
   const form = useForm({
     resolver: zodResolver(departmentSchema),
+    // Validate as the user types/leaves a field, not only on submit —
+    // this is what lets the Save/Create button reflect validity live,
+    // and keeps it disabled until every field is filled correctly.
+    mode: "onChange",
     defaultValues: normalizedDepartment || {
       name: "",
       coordinates: "",
@@ -73,7 +96,6 @@ const DepartmentForm = ({ open, onOpenChange, department, onSubmit }) => {
   const handleSubmit = async (values) => {
     try {
       setIsSubmitting(true);
-      console.log("Submitting Values", values);
       onSubmit(values);
       form.reset();
       onOpenChange(false);
@@ -102,11 +124,19 @@ const DepartmentForm = ({ open, onOpenChange, department, onSubmit }) => {
             <FormField
               control={form.control}
               name="name"
-              render={({ field }) => (
+              render={({ field, fieldState }) => (
                 <FormItem>
                   <FormLabel>Department Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter department name" {...field} />
+                    <Input
+                      placeholder="Enter department name"
+                      {...field}
+                      className={
+                        fieldState.error
+                          ? "border-red-500 focus-visible:ring-red-500"
+                          : ""
+                      }
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -115,11 +145,19 @@ const DepartmentForm = ({ open, onOpenChange, department, onSubmit }) => {
             <FormField
               control={form.control}
               name="coordinates"
-              render={({ field }) => (
+              render={({ field, fieldState }) => (
                 <FormItem>
                   <FormLabel>Department Latitude-Longitude</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. 12.9716,77.5946" {...field} />
+                    <Input
+                      placeholder="e.g. 12.9716,77.5946"
+                      {...field}
+                      className={
+                        fieldState.error
+                          ? "border-red-500 focus-visible:ring-red-500"
+                          : ""
+                      }
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -128,11 +166,19 @@ const DepartmentForm = ({ open, onOpenChange, department, onSubmit }) => {
             <FormField
               control={form.control}
               name="address"
-              render={({ field }) => (
+              render={({ field, fieldState }) => (
                 <FormItem>
                   <FormLabel>Department Address</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Enter physical address" {...field} />
+                    <Textarea
+                      placeholder="Enter physical address"
+                      {...field}
+                      className={
+                        fieldState.error
+                          ? "border-red-500 focus-visible:ring-red-500"
+                          : ""
+                      }
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -141,11 +187,19 @@ const DepartmentForm = ({ open, onOpenChange, department, onSubmit }) => {
             <FormField
               control={form.control}
               name="lead"
-              render={({ field }) => (
+              render={({ field, fieldState }) => (
                 <FormItem>
-                  <FormLabel>Department Lead (Optional)</FormLabel>
+                  <FormLabel>Department Lead</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter lead name" {...field} />
+                    <Input
+                      placeholder="Enter lead name"
+                      {...field}
+                      className={
+                        fieldState.error
+                          ? "border-red-500 focus-visible:ring-red-500"
+                          : ""
+                      }
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -162,7 +216,7 @@ const DepartmentForm = ({ open, onOpenChange, department, onSubmit }) => {
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !form.formState.isValid}
                 className="bg-instattend-600 hover:bg-instattend-700 text-white shadow rounded px-3 py-2 text-sm sm:px-4 sm:py-2"
               >
                 {isSubmitting ? "Saving..." : department ? "Update" : "Create"}

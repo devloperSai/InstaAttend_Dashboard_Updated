@@ -9,13 +9,7 @@ import {
 } from "./dialog";
 import { Button } from "./button";
 import { Badge } from "./badge";
-import {
-  Paperclip,
-  ExternalLink,
-  Check,
-  X as XIcon,
-  FileWarning,
-} from "lucide-react";
+import { Paperclip, Check, X as XIcon, FileWarning } from "lucide-react";
 import { cn } from "../../lib/utils";
 import {
   STATUS_BADGE_STYLES,
@@ -210,14 +204,6 @@ const ExpenseProfileModal = ({
                   <span className="text-sm font-semibold text-gray-700">
                     Receipt Preview
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowAttachment(false)}
-                    className="text-gray-400 hover:text-gray-600 rounded-md p-1 hover:bg-gray-200/60 transition-colors"
-                    aria-label="Close preview"
-                  >
-                    <XIcon className="h-4 w-4" />
-                  </button>
                 </div>
 
                 <div className="flex-1 min-h-0 rounded-lg bg-white border border-gray-200 overflow-hidden flex items-center justify-center">
@@ -247,9 +233,9 @@ const ExpenseProfileModal = ({
                   href={expense.receipt_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-3 inline-flex items-center justify-center gap-1.5 text-xs font-medium text-instattend-600 hover:text-instattend-700"
+                  className="mt-3 inline-flex items-center justify-center text-xs font-medium text-instattend-600 hover:text-instattend-700"
                 >
-                  Open original <ExternalLink className="h-3 w-3" />
+                  Open original
                 </a>
               </div>
             )}

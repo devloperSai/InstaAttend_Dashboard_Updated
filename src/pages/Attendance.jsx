@@ -5,16 +5,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import {
-  Search,
-  Filter,
-  Download,
-  Menu,
-  ArrowUp,
-  ArrowDown,
-  ArrowUpDown,
-  X,
-} from "lucide-react";
+import { Search, Filter, Download, Menu, X } from "lucide-react";
 import MainLayout from "../components/layout/MainLayout";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -183,16 +174,6 @@ const Attendance = () => {
       }
       return { key, direction: "asc" };
     });
-  };
-
-  const renderSortIcon = (key) => {
-    if (sortConfig.key !== key)
-      return <ArrowUpDown size={12} className="inline ml-1 opacity-30" />;
-    return sortConfig.direction === "asc" ? (
-      <ArrowUp size={12} className="inline ml-1" />
-    ) : (
-      <ArrowDown size={12} className="inline ml-1" />
-    );
   };
 
   const { currentRecords, totalPages } = useMemo(() => {
@@ -569,7 +550,6 @@ const Attendance = () => {
                       className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-200 cursor-pointer select-none hover:text-instattend-600 transition-colors"
                     >
                       {column.label}
-                      {renderSortIcon(column.key)}
                     </th>
                   ))}
                 </tr>

@@ -31,12 +31,6 @@ const LeaveProfileModal = ({
 }) => {
   if (!leave) return null;
 
-  const balance = leave.leaveBalance || { total: 0, used: 0, remaining: 0 };
-  const usedPct =
-    balance.total > 0
-      ? Math.min(100, Math.round((balance.used / balance.total) * 100))
-      : 0;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100%-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden p-0 sm:w-[calc(100%-2rem)] sm:max-w-[480px]">
@@ -64,37 +58,6 @@ const LeaveProfileModal = ({
                     ? ` · ${leave.department}`
                     : ""}
                 </p>
-              </div>
-            </div>
-
-            {/* Leave balance */}
-            <div className="rounded-lg bg-gray-50 p-4">
-              <p className={FIELD_LABEL}>Leave Balance</p>
-              <div className="grid grid-cols-3 gap-3 mb-3 mt-2">
-                <div className="flex flex-col items-start">
-                  <p className="text-[11px] text-gray-500 mb-0.5">Total</p>
-                  <p className="text-sm font-bold text-gray-900">
-                    {balance.total}
-                  </p>
-                </div>
-                <div className="flex flex-col items-start">
-                  <p className="text-[11px] text-gray-500 mb-0.5">Used</p>
-                  <p className="text-sm font-bold text-gray-900">
-                    {balance.used}
-                  </p>
-                </div>
-                <div className="flex flex-col items-start">
-                  <p className="text-[11px] text-gray-500 mb-0.5">Remaining</p>
-                  <p className="text-sm font-bold text-instattend-600">
-                    {balance.remaining}
-                  </p>
-                </div>
-              </div>
-              <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-instattend-500 rounded-full transition-all"
-                  style={{ width: `${usedPct}%` }}
-                />
               </div>
             </div>
 
