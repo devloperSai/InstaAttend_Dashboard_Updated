@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { cn } from "../../lib/utils";
 import {
   Users,
+  UserCheck,
   Calendar,
   CalendarDays,
   Receipt,
@@ -29,6 +30,10 @@ const Sidebar = ({ collapsed, onToggle, mobileOpen, onMobileClose }) => {
   const navItems = [
     { name: "Dashboard", icon: GridIcon, path: "/" },
     { name: "Employees", icon: Users, path: "/employees" },
+    // Sits directly under Employees — new-employee enrollment requests
+    // are a sub-workflow of employee management (admin approves/rejects
+    // self-registrations before they get system access).
+    { name: "Approve Requests", icon: UserCheck, path: "/approve-requests" },
     { name: "Attendance", icon: Clock, path: "/attendance" },
     { name: "Expense", icon: Receipt, path: "/expense" },
     { name: "Leave", icon: Calendar, path: "/leave" },

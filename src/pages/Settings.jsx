@@ -392,7 +392,9 @@ const Settings = () => {
     try {
       const payload = {
         type: "general_settings",
-        config: generalSettings,
+        config: Object.fromEntries(
+          GENERAL_FIELDS.map((field) => [field, generalSettings[field]]),
+        ),
       };
 
       if (generalSettings.id) {
@@ -415,9 +417,9 @@ const Settings = () => {
       .filter((item) => item.type === "company_information")
       .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))[0]; // get latest
 
-    const generalSettingsRecord = settings.find(
-      (item) => item.type === "general_settings",
-    );
+    const generalSettingsRecord = settings
+      .filter((item) => item.type === "general_settings")
+      .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))[0];
 
     // Set state
     if (companySettings) {
@@ -434,7 +436,10 @@ const Settings = () => {
     }
 
     if (generalSettingsRecord) {
-      const generalData = generalSettingsRecord.config || {};
+      const generalData = {
+        ...(generalSettingsRecord.config || {}),
+        id: generalSettingsRecord.id,
+      };
       setGeneralSettings(generalData);
       revalidateGeneral(generalData);
       setGeneralLocked(true);

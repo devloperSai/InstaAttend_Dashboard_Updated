@@ -32,7 +32,7 @@ import {
 import UnauthorizedModal from "../components/ui/UnauthorizedModel";
 
 const loginFormSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  email: z.string().email("Enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
@@ -45,11 +45,14 @@ const Login = () => {
 
   const form = useForm({
     resolver: zodResolver(loginFormSchema),
+    mode: "onChange",
     defaultValues: {
       email: "",
       password: "",
     },
   });
+  const email = form.watch("email");
+  const isEmailValid = loginFormSchema.shape.email.safeParse(email).success;
 
   if (authService.isAuthenticated()) {
     return <Navigate to="/" />;
@@ -153,7 +156,7 @@ const Login = () => {
                 <FormField
                   control={form.control}
                   name="email"
-                  render={({ field }) => (
+                  render={({ field, fieldState }) => (
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <div className="relative">
@@ -161,7 +164,11 @@ const Login = () => {
                           <Input
                             placeholder="email@company.com"
                             {...field}
-                            className="pl-10"
+                            className={`pl-10 ${
+                              fieldState.error
+                                ? "border-destructive focus-visible:ring-destructive"
+                                : ""
+                            }`}
                           />
                         </FormControl>
                         <Mail className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
@@ -230,8 +237,8 @@ const Login = () => {
 
                 <Button
                   type="submit"
-                  className="w-full bg-instattend-500 hover:bg-instattend-600"
-                  disabled={isLoggingIn}
+                  className="w-full bg-instattend-500 hover:bg-instattend-600 disabled:blur-[1px]"
+                  disabled={isLoggingIn || !isEmailValid}
                 >
                   {isLoggingIn ? "Signing in..." : "Sign in"}
                 </Button>
