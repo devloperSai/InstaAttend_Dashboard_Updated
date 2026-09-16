@@ -6,7 +6,7 @@ import { UserCheck, UserX, Mail, Phone, Clock, Inbox } from "lucide-react";
 import { format } from "date-fns";
 import { enrollmentService } from "../api/services/enrollment.service.js";
 import EnrollmentApprovalModal from "../components/ui/EnrollmentApprovalModal.jsx";
-import ApproveRequestSkeleton from "../components/skeleton/Approverequestskeleton.jsx";
+import ApproveRequestSkeleton from "../components/skeleton/ApproveRequestSkeleton.jsx";
 
 const getInitials = (name = "") =>
   name
