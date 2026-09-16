@@ -25,7 +25,10 @@ import { Button } from "./button";
 import { Switch } from "./switch";
 
 const designationSchema = z.object({
-  name: z.string().min(1, "Designation name is required"),
+  name: z
+    .string()
+    .min(1, "Designation name is required")
+    .max(100, "Must be under 100 characters"),
   admin_access: z.boolean().default(false),
 });
 
@@ -34,6 +37,9 @@ export function DesignationForm({ open, onOpenChange, designation, onSubmit }) {
 
   const form = useForm({
     resolver: zodResolver(designationSchema),
+    // Validate live so the Save button's disabled state always matches
+    // what's actually in the fields, instead of only checking on submit.
+    mode: "onChange",
     defaultValues: {
       name: designation?.designation_name || "",
       admin_access: designation?.admin_access || false,
@@ -84,11 +90,19 @@ export function DesignationForm({ open, onOpenChange, designation, onSubmit }) {
             <FormField
               control={form.control}
               name="name"
-              render={({ field }) => (
+              render={({ field, fieldState }) => (
                 <FormItem>
                   <FormLabel>Designation Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter designation title" {...field} />
+                    <Input
+                      placeholder="Enter designation title"
+                      {...field}
+                      className={
+                        fieldState.error
+                          ? "border-red-500 focus-visible:ring-red-500"
+                          : ""
+                      }
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -127,7 +141,7 @@ export function DesignationForm({ open, onOpenChange, designation, onSubmit }) {
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !form.formState.isValid}
                 className="bg-instattend-600 hover:bg-instattend-700 text-white shadow rounded px-3 py-2 text-sm sm:px-4 sm:py-2"
               >
                 {isSubmitting ? "Saving..." : designation ? "Update" : "Create"}

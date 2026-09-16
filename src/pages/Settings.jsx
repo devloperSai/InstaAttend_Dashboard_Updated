@@ -1,5 +1,5 @@
 // src/pages/Settings.jsx
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import MainLayout from "../components/layout/MainLayout.jsx";
 import { Button } from "../components/ui/button";
@@ -13,7 +13,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import DepartmentForm from "../components/ui/DepartmentForm";
 import { DesignationForm } from "../components/ui/DesignationForm.jsx";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2, CheckCircle2 } from "lucide-react";
 import { settingService } from "../api/services/setting.service.js";
 import {
   Card,
@@ -43,6 +43,128 @@ import SettingsSkeleton from "../components/skeleton/SettingsSkeleton.jsx";
 // unchanged; this swap is scoped to Settings only.
 const SETTINGS_CARD = "bg-white border border-gray-200 shadow-sm";
 
+// ---------------------------------------------------------------------
+// Validation
+// ---------------------------------------------------------------------
+// Kept centralized here (rather than inline per-field) so the same rules
+// drive both the red-border/error-message UI and the "is everything
+// valid yet" check that gates the Save buttons. Each validator returns
+// an empty string when the value is fine, or a short user-facing
+// message when it isn't. Every field in both forms is REQUIRED.
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^\+?\d{7,15}$/;
+const WEBSITE_REGEX =
+  /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .\-?=&%#]*)*\/?$/i;
+const TAX_ID_REGEX = /^[A-Za-z0-9-]{5,20}$/;
+const WEEKDAYS = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+];
+
+const validateCompanyField = (name, value) => {
+  const v = (value ?? "").toString().trim();
+
+  switch (name) {
+    case "company_name":
+      if (!v) return "Company name is required";
+      if (v.length > 100) return "Must be under 100 characters";
+      return "";
+
+    case "company_address":
+      if (!v) return "Address is required";
+      if (v.length > 200) return "Must be under 200 characters";
+      return "";
+
+    case "company_phone":
+      if (!v) return "Phone number is required";
+      if (!PHONE_REGEX.test(v))
+        return "Enter a valid phone number (7-15 digits)";
+      return "";
+
+    case "company_email":
+      if (!v) return "Email is required";
+      if (!EMAIL_REGEX.test(v)) return "Enter a valid email address";
+      return "";
+
+    case "company_website":
+      if (!v) return "Website is required";
+      if (!WEBSITE_REGEX.test(v)) return "Enter a valid website URL";
+      return "";
+
+    case "company_gst_no":
+      if (!v) return "Tax ID is required";
+      if (!TAX_ID_REGEX.test(v)) return "5-20 letters, numbers or hyphens only";
+      return "";
+
+    default:
+      return "";
+  }
+};
+
+const validateGeneralField = (name, value) => {
+  const v = (value ?? "").toString().trim();
+
+  switch (name) {
+    case "standard_work_hours": {
+      if (!v) return "Standard work hours is required";
+      const n = Number(v);
+      if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1 || n > 24) {
+        return "Enter a whole number between 1 and 24";
+      }
+      return "";
+    }
+
+    case "timezone":
+      if (!v) return "Timezone is required";
+      if (v.length < 2) return "Enter a valid timezone";
+      return "";
+
+    case "week_start_day":
+      if (!v) return "Week start day is required";
+      if (!WEEKDAYS.includes(v.toLowerCase())) {
+        return "Enter a valid day name (e.g. Monday)";
+      }
+      return "";
+
+    case "date_format":
+      if (!v) return "Date format is required";
+      if (!/^[dmyDMY/\-. ]+$/.test(v)) {
+        return "Use date tokens only, e.g. DD/MM/YYYY";
+      }
+      return "";
+
+    case "leave_year_start":
+      if (!v) return "Leave year start is required";
+      return "";
+
+    default:
+      return "";
+  }
+};
+
+const COMPANY_FIELDS = [
+  "company_name",
+  "company_address",
+  "company_phone",
+  "company_email",
+  "company_website",
+  "company_gst_no",
+];
+
+const GENERAL_FIELDS = [
+  "standard_work_hours",
+  "timezone",
+  "week_start_day",
+  "date_format",
+  "leave_year_start",
+];
+
 const Settings = () => {
   const [company, setCompany] = useState({});
   const [generalSettings, setGeneralSettings] = useState({});
@@ -56,6 +178,23 @@ const Settings = () => {
   const [selectedDepartment, setSelectedDepartment] = useState(undefined);
   const [selectedDesignation, setSelectedDesignation] = useState(undefined);
 
+  // ---- Field-level validation state ----
+  const [companyErrors, setCompanyErrors] = useState({});
+  const [generalErrors, setGeneralErrors] = useState({});
+  const [isSavingCompany, setIsSavingCompany] = useState(false);
+  const [isSavingGeneral, setIsSavingGeneral] = useState(false);
+
+  // ---- Submitted/locked state ----
+  // When true, the form's fields are read-only and the footer shows a
+  // disabled "Submitted" pill + an "Edit" button instead of the Save
+  // button. Starts `true` on load if a saved record already exists
+  // (fetchSettings sets this once data comes back), and flips to `true`
+  // again right after a successful save. The Edit button flips it back
+  // to `false` so the same fields (with their current values intact)
+  // become editable again.
+  const [companyLocked, setCompanyLocked] = useState(false);
+  const [generalLocked, setGeneralLocked] = useState(false);
+
   // Delete-confirmation modal state — shared between the Departments and
   // Designations tabs. `deleteTarget` carries both which kind of record
   // it is ("department" | "designation") and the record itself, so one
@@ -68,32 +207,90 @@ const Settings = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Recomputes every company field's error on demand — used both after
+  // fetch (so the Save button starts in the correct state) and after
+  // every keystroke.
+  const revalidateCompany = useCallback((data) => {
+    const nextErrors = {};
+    COMPANY_FIELDS.forEach((field) => {
+      nextErrors[field] = validateCompanyField(field, data[field]);
+    });
+    setCompanyErrors(nextErrors);
+  }, []);
+
+  const revalidateGeneral = useCallback((data) => {
+    const nextErrors = {};
+    GENERAL_FIELDS.forEach((field) => {
+      nextErrors[field] = validateGeneralField(field, data[field]);
+    });
+    setGeneralErrors(nextErrors);
+  }, []);
+
   const handleCompanyChange = (e) => {
+    if (companyLocked) return; // fields are read-only while locked
     const { name, value } = e.target;
-    setCompany((prev) => ({ ...prev, [name]: value }));
+    setCompany((prev) => {
+      const next = { ...prev, [name]: value };
+      setCompanyErrors((prevErrors) => ({
+        ...prevErrors,
+        [name]: validateCompanyField(name, value),
+      }));
+      return next;
+    });
   };
 
+  const isCompanyValid = useMemo(
+    () =>
+      COMPANY_FIELDS.every(
+        (field) => !validateCompanyField(field, company[field]),
+      ),
+    [company],
+  );
+
+  const isGeneralValid = useMemo(
+    () =>
+      GENERAL_FIELDS.every(
+        (field) => !validateGeneralField(field, generalSettings[field]),
+      ),
+    [generalSettings],
+  );
+
   const saveCompanyData = async () => {
-    const companyConfig = {
-      company_name: company.company_name,
-      company_address: company.company_address,
-      company_phone: company.company_phone,
-      company_email: company.company_email,
-      company_website: company.company_website,
-      company_gst_no: company.company_gst_no,
-    };
+    // Belt-and-braces: re-validate right before submit so a stale click
+    // can never slip an invalid payload through, and re-show every
+    // error if something is wrong.
+    revalidateCompany(company);
+    if (!isCompanyValid) return;
 
-    const payload = {
-      type: "company_information",
-      config: companyConfig,
-    };
+    setIsSavingCompany(true);
+    try {
+      const companyConfig = {
+        company_name: company.company_name,
+        company_address: company.company_address,
+        company_phone: company.company_phone,
+        company_email: company.company_email,
+        company_website: company.company_website,
+        company_gst_no: company.company_gst_no,
+      };
 
-    if (company.id) {
-      await settingService.updateSettings(company.id, payload);
-    } else {
-      await settingService.createSetting(payload);
+      const payload = {
+        type: "company_information",
+        config: companyConfig,
+      };
+
+      // Connects to the same settingService API used elsewhere: PUT
+      // (update) when a record already exists, POST (create) the first
+      // time. Either way, on success the form locks into "Submitted".
+      if (company.id) {
+        await settingService.updateSettings(company.id, payload);
+      } else {
+        await settingService.createSetting(payload);
+      }
+      await fetchSettings();
+      setCompanyLocked(true);
+    } finally {
+      setIsSavingCompany(false);
     }
-    fetchSettings();
   };
 
   const handleAddDepartment = async (department) => {
@@ -101,7 +298,7 @@ const Settings = () => {
       department_name: department.name,
       department_lat_long: department.coordinates,
       department_address: department.address,
-      ...(department.lead ? { department_lead: department.lead } : {}),
+      department_lead: department.lead,
     };
     await departmentService.createDepartment(departmentData);
     fetchDepartments();
@@ -109,12 +306,10 @@ const Settings = () => {
 
   const handleUpdateDepartment = async (department) => {
     const updatedDepartment = {
-      ...(department.name ? { department_name: department.name } : {}),
-      ...(department.coordinates
-        ? { department_lat_long: department.coordinates }
-        : {}),
-      ...(department.address ? { department_address: department.address } : {}),
-      ...(department.lead ? { department_lead: department.lead } : {}),
+      department_name: department.name,
+      department_lat_long: department.coordinates,
+      department_address: department.address,
+      department_lead: department.lead,
     };
     await departmentService.updateDepartment(department.id, updatedDepartment);
     fetchDepartments();
@@ -131,7 +326,7 @@ const Settings = () => {
 
   const handleUpdateDesignation = async (designation) => {
     const updatedDesignation = {
-      ...(designation.name ? { designation_name: designation.name } : {}),
+      designation_name: designation.name,
       admin_access: designation.admin_access,
     };
     await designationService.updateDesignation(
@@ -176,23 +371,40 @@ const Settings = () => {
 
   // Add a handler for general settings input changes
   const handleGeneralSettingsChange = (e) => {
+    if (generalLocked) return; // fields are read-only while locked
     const { name, value } = e.target;
-    setGeneralSettings((prev) => ({ ...prev, [name]: value }));
+    setGeneralSettings((prev) => {
+      const next = { ...prev, [name]: value };
+      setGeneralErrors((prevErrors) => ({
+        ...prevErrors,
+        [name]: validateGeneralField(name, value),
+      }));
+      return next;
+    });
   };
 
   // Create a new function to save general settings
   const saveGeneralSettings = async () => {
-    const payload = {
-      type: "general_settings",
-      config: generalSettings,
-    };
+    revalidateGeneral(generalSettings);
+    if (!isGeneralValid) return;
 
-    if (generalSettings.id) {
-      await settingService.updateSettings(generalSettings.id, payload);
-    } else {
-      await settingService.createSetting(payload);
+    setIsSavingGeneral(true);
+    try {
+      const payload = {
+        type: "general_settings",
+        config: generalSettings,
+      };
+
+      if (generalSettings.id) {
+        await settingService.updateSettings(generalSettings.id, payload);
+      } else {
+        await settingService.createSetting(payload);
+      }
+      await fetchSettings();
+      setGeneralLocked(true);
+    } finally {
+      setIsSavingGeneral(false);
     }
-    fetchSettings();
   };
 
   const fetchSettings = useCallback(async () => {
@@ -203,19 +415,34 @@ const Settings = () => {
       .filter((item) => item.type === "company_information")
       .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))[0]; // get latest
 
-    const generalSettings = settings.find(
+    const generalSettingsRecord = settings.find(
       (item) => item.type === "general_settings",
     );
 
     // Set state
     if (companySettings) {
-      setCompany(companySettings.config);
+      const companyData = companySettings.config || {};
+      setCompany(companyData);
+      revalidateCompany(companyData);
+      // A saved record already exists — start in the locked/"Submitted"
+      // view rather than forcing the user to re-open an edit they
+      // already made in a previous session.
+      setCompanyLocked(true);
+    } else {
+      revalidateCompany({});
+      setCompanyLocked(false);
     }
 
-    if (generalSettings) {
-      setGeneralSettings(generalSettings.config);
+    if (generalSettingsRecord) {
+      const generalData = generalSettingsRecord.config || {};
+      setGeneralSettings(generalData);
+      revalidateGeneral(generalData);
+      setGeneralLocked(true);
+    } else {
+      revalidateGeneral({});
+      setGeneralLocked(false);
     }
-  }, []);
+  }, [revalidateCompany, revalidateGeneral]);
 
   const fetchDepartments = useCallback(async () => {
     const data = await departmentService.getDepartments();
@@ -236,6 +463,17 @@ const Settings = () => {
       })
       .finally(() => setIsLoading(false));
   }, [fetchSettings, fetchDepartments, fetchDesignations]);
+
+  // Small shared helper for rendering the red-border + message pattern
+  // consistently across every field below. When `locked` is true it
+  // also mutes the field visually to signal it's read-only.
+  const fieldClass = (hasError, locked) =>
+    [
+      hasError ? "border-red-500 focus-visible:ring-red-500" : "",
+      locked ? "bg-gray-100 text-gray-500 cursor-not-allowed" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
 
   return (
     <MainLayout>
@@ -300,8 +538,18 @@ const Settings = () => {
                       name="company_name"
                       value={company.company_name || ""}
                       onChange={handleCompanyChange}
-                      className="text-gray-900"
+                      disabled={companyLocked}
+                      className={fieldClass(
+                        companyErrors.company_name,
+                        companyLocked,
+                      )}
+                      aria-invalid={!!companyErrors.company_name}
                     />
+                    {!companyLocked && companyErrors.company_name && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {companyErrors.company_name}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="address" className="text-gray-700">
@@ -313,8 +561,18 @@ const Settings = () => {
                       value={company.company_address || ""}
                       onChange={handleCompanyChange}
                       rows={3}
-                      className="text-gray-900"
+                      disabled={companyLocked}
+                      className={fieldClass(
+                        companyErrors.company_address,
+                        companyLocked,
+                      )}
+                      aria-invalid={!!companyErrors.company_address}
                     />
+                    {!companyLocked && companyErrors.company_address && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {companyErrors.company_address}
+                      </p>
+                    )}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -326,8 +584,18 @@ const Settings = () => {
                         name="company_phone"
                         value={company.company_phone || ""}
                         onChange={handleCompanyChange}
-                        className="text-gray-900"
+                        disabled={companyLocked}
+                        className={fieldClass(
+                          companyErrors.company_phone,
+                          companyLocked,
+                        )}
+                        aria-invalid={!!companyErrors.company_phone}
                       />
+                      {!companyLocked && companyErrors.company_phone && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {companyErrors.company_phone}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email" className="text-gray-700">
@@ -338,8 +606,18 @@ const Settings = () => {
                         name="company_email"
                         value={company.company_email || ""}
                         onChange={handleCompanyChange}
-                        className="text-gray-900"
+                        disabled={companyLocked}
+                        className={fieldClass(
+                          companyErrors.company_email,
+                          companyLocked,
+                        )}
+                        aria-invalid={!!companyErrors.company_email}
                       />
+                      {!companyLocked && companyErrors.company_email && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {companyErrors.company_email}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -352,8 +630,18 @@ const Settings = () => {
                         name="company_website"
                         value={company.company_website || ""}
                         onChange={handleCompanyChange}
-                        className="text-gray-900"
+                        disabled={companyLocked}
+                        className={fieldClass(
+                          companyErrors.company_website,
+                          companyLocked,
+                        )}
+                        aria-invalid={!!companyErrors.company_website}
                       />
+                      {!companyLocked && companyErrors.company_website && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {companyErrors.company_website}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="taxId" className="text-gray-700">
@@ -364,18 +652,50 @@ const Settings = () => {
                         name="company_gst_no"
                         value={company.company_gst_no || ""}
                         onChange={handleCompanyChange}
-                        className="text-gray-900"
+                        disabled={companyLocked}
+                        className={fieldClass(
+                          companyErrors.company_gst_no,
+                          companyLocked,
+                        )}
+                        aria-invalid={!!companyErrors.company_gst_no}
                       />
+                      {!companyLocked && companyErrors.company_gst_no && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {companyErrors.company_gst_no}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </CardContent>
-                <CardFooter>
-                  <Button
-                    onClick={saveCompanyData}
-                    className="bg-instattend-600 hover:bg-instattend-700 text-white shadow rounded px-3 py-2 text-sm sm:px-4 sm:py-2 w-full sm:w-auto"
-                  >
-                    Save Changes
-                  </Button>
+                <CardFooter className="flex items-center gap-3">
+                  {companyLocked ? (
+                    <>
+                      <Button
+                        disabled
+                        className="bg-green-100 text-green-700 shadow-none rounded px-3 py-2 text-sm sm:px-4 sm:py-2 w-full sm:w-auto opacity-100 cursor-not-allowed hover:bg-green-100"
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        Submitted
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setCompanyLocked(false)}
+                        className="border-instattend-300 text-instattend-700 hover:bg-instattend-50 rounded px-3 py-2 text-sm sm:px-4 sm:py-2 w-full sm:w-auto"
+                      >
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      onClick={saveCompanyData}
+                      disabled={!isCompanyValid || isSavingCompany}
+                      className="bg-instattend-600 hover:bg-instattend-700 text-white shadow rounded px-3 py-2 text-sm sm:px-4 sm:py-2 w-full sm:w-auto"
+                    >
+                      {isSavingCompany ? "Saving..." : "Save Changes"}
+                    </Button>
+                  )}
                 </CardFooter>
               </Card>
             </TabsContent>
@@ -585,10 +905,22 @@ const Settings = () => {
                       id="work-hours"
                       name="standard_work_hours"
                       type="number"
+                      min={1}
+                      max={24}
                       value={generalSettings.standard_work_hours || ""}
                       onChange={handleGeneralSettingsChange}
-                      className="text-gray-900"
+                      disabled={generalLocked}
+                      className={fieldClass(
+                        generalErrors.standard_work_hours,
+                        generalLocked,
+                      )}
+                      aria-invalid={!!generalErrors.standard_work_hours}
                     />
+                    {!generalLocked && generalErrors.standard_work_hours && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {generalErrors.standard_work_hours}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="timezone" className="text-gray-700">
@@ -599,8 +931,18 @@ const Settings = () => {
                       name="timezone"
                       value={generalSettings.timezone || ""}
                       onChange={handleGeneralSettingsChange}
-                      className="text-gray-900"
+                      disabled={generalLocked}
+                      className={fieldClass(
+                        generalErrors.timezone,
+                        generalLocked,
+                      )}
+                      aria-invalid={!!generalErrors.timezone}
                     />
+                    {!generalLocked && generalErrors.timezone && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {generalErrors.timezone}
+                      </p>
+                    )}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -612,8 +954,19 @@ const Settings = () => {
                         name="week_start_day"
                         value={generalSettings.week_start_day || ""}
                         onChange={handleGeneralSettingsChange}
-                        className="text-gray-900"
+                        placeholder="e.g. Monday"
+                        disabled={generalLocked}
+                        className={fieldClass(
+                          generalErrors.week_start_day,
+                          generalLocked,
+                        )}
+                        aria-invalid={!!generalErrors.week_start_day}
                       />
+                      {!generalLocked && generalErrors.week_start_day && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {generalErrors.week_start_day}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="date-format" className="text-gray-700">
@@ -624,8 +977,19 @@ const Settings = () => {
                         name="date_format"
                         value={generalSettings.date_format || ""}
                         onChange={handleGeneralSettingsChange}
-                        className="text-gray-900"
+                        placeholder="e.g. DD/MM/YYYY"
+                        disabled={generalLocked}
+                        className={fieldClass(
+                          generalErrors.date_format,
+                          generalLocked,
+                        )}
+                        aria-invalid={!!generalErrors.date_format}
                       />
+                      {!generalLocked && generalErrors.date_format && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {generalErrors.date_format}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -637,17 +1001,49 @@ const Settings = () => {
                       name="leave_year_start"
                       value={generalSettings.leave_year_start || ""}
                       onChange={handleGeneralSettingsChange}
-                      className="text-gray-900"
+                      disabled={generalLocked}
+                      className={fieldClass(
+                        generalErrors.leave_year_start,
+                        generalLocked,
+                      )}
+                      aria-invalid={!!generalErrors.leave_year_start}
                     />
+                    {!generalLocked && generalErrors.leave_year_start && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {generalErrors.leave_year_start}
+                      </p>
+                    )}
                   </div>
                 </CardContent>
-                <CardFooter>
-                  <Button
-                    className="bg-instattend-600 hover:bg-instattend-700 text-white shadow rounded px-3 py-2 text-sm sm:px-4 sm:py-2 w-full sm:w-auto"
-                    onClick={saveGeneralSettings}
-                  >
-                    Save Settings
-                  </Button>
+                <CardFooter className="flex items-center gap-3">
+                  {generalLocked ? (
+                    <>
+                      <Button
+                        disabled
+                        className="bg-green-100 text-green-700 shadow-none rounded px-3 py-2 text-sm sm:px-4 sm:py-2 w-full sm:w-auto opacity-100 cursor-not-allowed hover:bg-green-100"
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        Submitted
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setGeneralLocked(false)}
+                        className="border-instattend-300 text-instattend-700 hover:bg-instattend-50 rounded px-3 py-2 text-sm sm:px-4 sm:py-2 w-full sm:w-auto"
+                      >
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      className="bg-instattend-600 hover:bg-instattend-700 text-white shadow rounded px-3 py-2 text-sm sm:px-4 sm:py-2 w-full sm:w-auto"
+                      onClick={saveGeneralSettings}
+                      disabled={!isGeneralValid || isSavingGeneral}
+                    >
+                      {isSavingGeneral ? "Saving..." : "Save Settings"}
+                    </Button>
+                  )}
                 </CardFooter>
               </Card>
             </TabsContent>
