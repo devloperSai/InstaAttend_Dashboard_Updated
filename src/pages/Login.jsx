@@ -63,6 +63,8 @@ const Login = () => {
       setIsLoggingIn(true);
       setLoginError("");
       const result = await authService.login(data.email, data.password);
+      const organizationId = result?.data?.data?.user?.organization_id;
+      localStorage.setItem("organization_id", organizationId);
 
       if (result?.unauthorized) {
         setShowUnauthorized(true);
