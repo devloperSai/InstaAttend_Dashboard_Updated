@@ -164,12 +164,24 @@ const Leave = () => {
   const filteredLeaves = leaves.filter((leave) => {
     const term = searchTerm.trim().toLowerCase();
     const matchesSearch =
-      !term || leave.employeeName?.toLowerCase().includes(term);
+      !term ||
+      [leave.employeeName, leave.role, leave.department, leave.type]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(term));
     const matchesStatus =
-      statusFilter === "all" || leave.status === statusFilter;
-    const matchesType = typeFilter === "all" || leave.type === typeFilter;
+      statusFilter === "all" ||
+      String(leave.status).toLowerCase() === statusFilter.toLowerCase();
+    const matchesType =
+      typeFilter === "all" ||
+      String(leave.type).toLowerCase() === typeFilter.toLowerCase();
     return matchesSearch && matchesStatus && matchesType;
   });
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("all");
+    setTypeFilter("all");
+  };
 
   const openLeaveModal = (leave) => {
     setSelectedLeave(leave);
@@ -307,7 +319,8 @@ const Leave = () => {
                     <button
                       type="button"
                       className="flex items-center justify-center h-10 w-10 rounded-md border border-input hover:bg-accent"
-                      title="Filters"
+                      title="Clear filters"
+                      onClick={clearFilters}
                     >
                       <Filter className="h-4 w-4" />
                     </button>
