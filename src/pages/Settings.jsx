@@ -297,8 +297,6 @@ const Settings = () => {
     const departmentData = {
       department_name: department.name,
       department_lat_long: department.coordinates,
-      department_address: department.address,
-      department_lead: department.lead,
     };
     await departmentService.createDepartment(departmentData);
     fetchDepartments();
@@ -308,8 +306,6 @@ const Settings = () => {
     const updatedDepartment = {
       department_name: department.name,
       department_lat_long: department.coordinates,
-      department_address: department.address,
-      department_lead: department.lead,
     };
     await departmentService.updateDepartment(department.id, updatedDepartment);
     fetchDepartments();
@@ -318,7 +314,6 @@ const Settings = () => {
   const handleAddDesignation = async (designation) => {
     const designationData = {
       designation_name: designation.name,
-      admin_access: designation.admin_access,
     };
     await designationService.createDesignation(designationData);
     fetchDesignations();
@@ -327,7 +322,6 @@ const Settings = () => {
   const handleUpdateDesignation = async (designation) => {
     const updatedDesignation = {
       designation_name: designation.name,
-      admin_access: designation.admin_access,
     };
     await designationService.updateDesignation(
       designation.id,
@@ -730,12 +724,6 @@ const Settings = () => {
                           <TableHead className="whitespace-nowrap text-gray-700 font-semibold">
                             Department
                           </TableHead>
-                          <TableHead className="whitespace-nowrap text-gray-700 font-semibold">
-                            Address
-                          </TableHead>
-                          <TableHead className="whitespace-nowrap text-gray-700 font-semibold">
-                            Lead
-                          </TableHead>
                           <TableHead className="text-right whitespace-nowrap text-gray-700 font-semibold">
                             Actions
                           </TableHead>
@@ -746,12 +734,6 @@ const Settings = () => {
                           <TableRow key={department.id}>
                             <TableCell className="whitespace-nowrap text-gray-900 font-medium">
                               {department.department_name}
-                            </TableCell>
-                            <TableCell className="whitespace-nowrap text-gray-700">
-                              {department.department_address}
-                            </TableCell>
-                            <TableCell className="whitespace-nowrap text-gray-700">
-                              {department.department_lead || "NA"}
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end space-x-2">
@@ -826,9 +808,6 @@ const Settings = () => {
                           <TableHead className="whitespace-nowrap text-gray-700 font-semibold">
                             Designation
                           </TableHead>
-                          <TableHead className="whitespace-nowrap text-gray-700 font-semibold">
-                            Have Admin Access
-                          </TableHead>
                           <TableHead className="text-right whitespace-nowrap text-gray-700 font-semibold">
                             Actions
                           </TableHead>
@@ -839,9 +818,6 @@ const Settings = () => {
                           <TableRow key={designation.id}>
                             <TableCell className="whitespace-nowrap text-gray-900 font-medium">
                               {designation.designation_name}
-                            </TableCell>
-                            <TableCell className="font-medium text-gray-900">
-                              {designation.admin_access ? "Yes" : "No"}
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end space-x-2">

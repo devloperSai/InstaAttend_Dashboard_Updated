@@ -1,5 +1,12 @@
 //updated code
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useCallback,
+} from "react";
+import { createPortal } from "react-dom";
 import MainLayout from "../components/layout/MainLayout";
 import AddEmployeeForm from "../components/ui/AddEmployeeForm";
 import UpdateEmployeeForm from "../components/ui/UpdateEmployeeForm";
@@ -50,8 +57,61 @@ const Employees = () => {
   // --- Export state ---
   const [showExportOptions, setShowExportOptions] = useState(false);
 
-  const filterPanelRef = useRef();
+  // The Filter dropdown is portaled to document.body (see render below)
+  // instead of living inline inside the page's overflow-x-hidden
+  // wrapper. That wrapper implicitly clips overflow-y too (a CSS quirk:
+  // setting overflow-x to anything but visible forces overflow-y to
+  // auto), so an absolutely-positioned dropdown living inside it gets
+  // squashed/cut whenever the wrapper's content (e.g. the results list)
+  // is short — exactly the "filter panel gets cut off" bug. Tracking
+  // the button's screen position lets us render the panel with
+  // position: fixed directly on <body>, immune to any ancestor's
+  // overflow/height.
+  const filterButtonRef = useRef();
+  const filterDropdownRef = useRef();
+  const [filterPanelPos, setFilterPanelPos] = useState({ top: 0, right: 0 });
   const exportRef = useRef();
+
+  const updateFilterPanelPos = useCallback(() => {
+    const btn = filterButtonRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const top = rect.bottom + 8;
+    // Clamp so the panel's own top never sits so low that a tall panel
+    // would have nowhere to go but off-screen — combined with the
+    // max-height/overflow-y-auto on the panel itself below, this
+    // guarantees the whole thing is always reachable, never hard-cut.
+    setFilterPanelPos({
+      top,
+      right: Math.max(8, window.innerWidth - rect.right),
+    });
+  }, []);
+
+  const handleToggleFilter = () => {
+    setShowFilterOptions((prev) => !prev);
+  };
+
+  // Compute position with useLayoutEffect (fires synchronously after DOM
+  // mutations, before the browser paints) rather than only inside the
+  // click handler — this guarantees the panel's very first paint already
+  // has correct, non-zero coordinates instead of a stale {top:0,right:0}
+  // default that could otherwise cause a visible mispositioned flash.
+  useLayoutEffect(() => {
+    if (!showFilterOptions) return;
+    updateFilterPanelPos();
+  }, [showFilterOptions, updateFilterPanelPos]);
+
+  // Keep the portaled panel pinned under the button while open, even if
+  // the window resizes or the page scrolls.
+  useEffect(() => {
+    if (!showFilterOptions) return;
+    window.addEventListener("resize", updateFilterPanelPos);
+    window.addEventListener("scroll", updateFilterPanelPos, true);
+    return () => {
+      window.removeEventListener("resize", updateFilterPanelPos);
+      window.removeEventListener("scroll", updateFilterPanelPos, true);
+    };
+  }, [showFilterOptions, updateFilterPanelPos]);
 
   useEffect(() => {
     fetchEmployees().then(() => {});
@@ -61,8 +121,13 @@ const Employees = () => {
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (filterPanelRef.current && !filterPanelRef.current.contains(e.target))
+      const insideFilterButton = filterButtonRef.current?.contains(e.target);
+      const insideFilterDropdown = filterDropdownRef.current?.contains(
+        e.target,
+      );
+      if (!insideFilterButton && !insideFilterDropdown) {
         setShowFilterOptions(false);
+      }
       if (exportRef.current && !exportRef.current.contains(e.target))
         setShowExportOptions(false);
     };
@@ -293,14 +358,14 @@ const Employees = () => {
           </div>
 
           <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0 justify-center sm:justify-end">
-            {/* Filter button + panel, wired to department/designation/status/sort state */}
-            <div
-              className="relative inline-block text-left"
-              ref={filterPanelRef}
-            >
+            {/* Filter button — the dropdown panel itself is rendered via
+                a portal below (outside this container) so it can never
+                be clipped by this page's overflow-x-hidden wrapper. */}
+            <div className="relative inline-block text-left">
               <button
                 type="button"
-                onClick={() => setShowFilterOptions((prev) => !prev)}
+                ref={filterButtonRef}
+                onClick={handleToggleFilter}
                 className="flex items-center justify-center gap-2 bg-white border border-gray-300 px-4 py-2 rounded-full text-sm sm:text-base font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition-all"
               >
                 <Filter className="h-4 w-4" />
@@ -312,130 +377,142 @@ const Employees = () => {
                 )}
               </button>
 
-              {showFilterOptions && (
-                <div className="absolute right-0 z-30 mt-2 w-[min(20rem,calc(100vw-2rem))] bg-white border rounded-xl shadow-2xl p-4 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-gray-700">
-                      Filters
-                    </h3>
-                    <button
-                      type="button"
-                      onClick={() => setShowFilterOptions(false)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-
-                  {/* Department */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">
-                      Department
-                    </label>
-                    <select
-                      className="bg-white border border-gray-200 px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-instattend-500 w-full"
-                      value={filterDepartment}
-                      onChange={(e) => {
-                        setFilterDepartment(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                    >
-                      <option value="">All Departments</option>
-                      {departments.map((dept) => (
-                        <option key={dept.id} value={dept.id}>
-                          {dept.department_name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Designation */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">
-                      Designation
-                    </label>
-                    <select
-                      className="bg-white border border-gray-200 px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-instattend-500 w-full"
-                      value={filterDesignation}
-                      onChange={(e) => {
-                        setFilterDesignation(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                    >
-                      <option value="">All Designations</option>
-                      {designations.map((desig) => (
-                        <option key={desig.id} value={desig.id}>
-                          {desig.designation_name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Status */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">
-                      Status
-                    </label>
-                    <select
-                      className="bg-white border border-gray-200 px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-instattend-500 w-full"
-                      value={filterStatus}
-                      onChange={(e) => {
-                        setFilterStatus(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                    >
-                      <option value="">All Statuses</option>
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
-                  </div>
-
-                  {/* Sort by */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">
-                      Sort By
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <select
-                        className="bg-white border border-gray-200 px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-instattend-500 w-full"
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value)}
-                      >
-                        <option value="">None</option>
-                        <option value="name">Employee Name</option>
-                        <option value="department">Department</option>
-                        <option value="designation">Designation</option>
-                      </select>
+              {showFilterOptions &&
+                createPortal(
+                  <div
+                    ref={filterDropdownRef}
+                    style={{
+                      position: "fixed",
+                      top: filterPanelPos.top,
+                      right: filterPanelPos.right,
+                    }}
+                    className="z-[100] w-[min(20rem,calc(100vw-2rem))] bg-white border rounded-xl shadow-2xl p-4 space-y-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-gray-700">
+                        Filters
+                      </h3>
                       <button
                         type="button"
-                        onClick={() =>
-                          setSortOrder((prev) =>
-                            prev === "asc" ? "desc" : "asc",
-                          )
-                        }
-                        className="flex items-center gap-1 bg-white border border-gray-200 px-3 py-2 rounded-lg text-sm hover:bg-gray-50 transition-colors shrink-0"
-                        title={sortOrder === "asc" ? "Ascending" : "Descending"}
+                        onClick={() => setShowFilterOptions(false)}
+                        className="text-gray-400 hover:text-gray-600"
                       >
-                        {sortOrder === "asc" ? (
-                          <ArrowUp size={14} />
-                        ) : (
-                          <ArrowDown size={14} />
-                        )}
+                        <X size={16} />
                       </button>
                     </div>
-                  </div>
 
-                  <div className="flex justify-end pt-1 border-t border-gray-100">
-                    <button
-                      type="button"
-                      onClick={clearFilters}
-                      className="text-sm text-gray-500 hover:text-instattend-600 font-medium px-2 py-1"
-                    >
-                      Clear All
-                    </button>
-                  </div>
-                </div>
-              )}
+                    {/* Department */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">
+                        Department
+                      </label>
+                      <select
+                        className="bg-white border border-gray-200 px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-instattend-500 w-full"
+                        value={filterDepartment}
+                        onChange={(e) => {
+                          setFilterDepartment(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <option value="">All Departments</option>
+                        {departments.map((dept) => (
+                          <option key={dept.id} value={dept.id}>
+                            {dept.department_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Designation */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">
+                        Designation
+                      </label>
+                      <select
+                        className="bg-white border border-gray-200 px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-instattend-500 w-full"
+                        value={filterDesignation}
+                        onChange={(e) => {
+                          setFilterDesignation(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <option value="">All Designations</option>
+                        {designations.map((desig) => (
+                          <option key={desig.id} value={desig.id}>
+                            {desig.designation_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Status */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">
+                        Status
+                      </label>
+                      <select
+                        className="bg-white border border-gray-200 px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-instattend-500 w-full"
+                        value={filterStatus}
+                        onChange={(e) => {
+                          setFilterStatus(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <option value="">All Statuses</option>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                      </select>
+                    </div>
+
+                    {/* Sort by */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">
+                        Sort By
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <select
+                          className="bg-white border border-gray-200 px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-instattend-500 w-full"
+                          value={sortBy}
+                          onChange={(e) => setSortBy(e.target.value)}
+                        >
+                          <option value="">None</option>
+                          <option value="name">Employee Name</option>
+                          <option value="department">Department</option>
+                          <option value="designation">Designation</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSortOrder((prev) =>
+                              prev === "asc" ? "desc" : "asc",
+                            )
+                          }
+                          className="flex items-center gap-1 bg-white border border-gray-200 px-3 py-2 rounded-lg text-sm hover:bg-gray-50 transition-colors shrink-0"
+                          title={
+                            sortOrder === "asc" ? "Ascending" : "Descending"
+                          }
+                        >
+                          {sortOrder === "asc" ? (
+                            <ArrowUp size={14} />
+                          ) : (
+                            <ArrowDown size={14} />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-1 border-t border-gray-100">
+                      <button
+                        type="button"
+                        onClick={clearFilters}
+                        className="text-sm text-gray-500 hover:text-instattend-600 font-medium px-2 py-1"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                  </div>,
+                  document.body,
+                )}
             </div>
 
             {/* Export - single button styled as a green pill, logic unchanged */}

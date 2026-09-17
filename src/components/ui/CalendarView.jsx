@@ -83,8 +83,6 @@ const DAY_VARIANT_CLASSES = {
  * @param {Map<string, {presentCount:number, absentCount:number, halfDayCount:number}>} attendanceMap
  *        - per-date live attendance counts, keyed by yyyy-MM-dd
  * @param {boolean} isLoading - true while attendance data for the visible month is being fetched
- * @param {Date|null} selectedDate - currently selected day, for highlighting
- * @param {(date: Date) => void} onSelectDate - called when a day cell is clicked
  * @param {string} [className] - optional height override, e.g. "h-[70vh]"
  */
 const CalendarView = ({
@@ -93,8 +91,6 @@ const CalendarView = ({
   holidays = [],
   attendanceMap,
   isLoading = false,
-  selectedDate,
-  onSelectDate,
   className,
 }) => {
   const monthStart = startOfMonth(currentMonth);
@@ -185,7 +181,6 @@ const CalendarView = ({
                 const holiday = holidayMap.get(dateKey);
                 const inMonth = isSameMonth(d, currentMonth);
                 const isToday = isSameDay(d, new Date());
-                const selected = selectedDate && isSameDay(d, selectedDate);
                 const isSunday = d.getDay() === 0;
                 const isPast = isBefore(d, startOfDay(new Date()));
                 const stats = attendanceMap?.get(dateKey);
@@ -198,7 +193,6 @@ const CalendarView = ({
 
                 let variant;
                 if (isToday) variant = "today";
-                else if (selected) variant = "selected";
                 else if (holiday?.type === "optional")
                   variant = "optionalHoliday";
                 else if (holiday) variant = "nationalHoliday";
@@ -212,9 +206,8 @@ const CalendarView = ({
                 const showAttendance = (isPast || isToday) && stats;
 
                 return (
-                  <button
+                  <div
                     key={dateKey}
-                    onClick={() => onSelectDate?.(d)}
                     title={holiday ? holiday.name : undefined}
                     className={cn(
                       "h-full w-full rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all duration-200 ease-smooth",
@@ -234,7 +227,7 @@ const CalendarView = ({
                         </span>
                       </span>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </div>

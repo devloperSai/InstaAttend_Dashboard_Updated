@@ -45,10 +45,6 @@ const Attendance = () => {
     name: "",
     status: "",
   });
-  const [sortConfig, setSortConfig] = useState({
-    key: "date",
-    direction: "desc",
-  });
   const [allAttendance, setAllAttendance] = useState([]); // raw, unfiltered dataset
   const [showExportOptions, setShowExportOptions] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -140,41 +136,12 @@ const Attendance = () => {
     });
   }, [allAttendance, searchTerm, filters]);
 
-  const filteredData = useMemo(() => {
-    const { key, direction } = sortConfig;
-    if (!key) return filteredBeforeSort;
-
-    return [...filteredBeforeSort].sort((a, b) => {
-      let valA = a[key];
-      let valB = b[key];
-
-      if (key === "date") {
-        valA = new Date(a.date).getTime();
-        valB = new Date(b.date).getTime();
-      } else {
-        valA = (valA ?? "").toString().toLowerCase();
-        valB = (valB ?? "").toString().toLowerCase();
-      }
-
-      if (valA < valB) return direction === "asc" ? -1 : 1;
-      if (valA > valB) return direction === "asc" ? 1 : -1;
-      return 0;
-    });
-  }, [filteredBeforeSort, sortConfig]);
+  const filteredData = filteredBeforeSort;
 
   // Reset to page 1 whenever the visible result set changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filters, sortConfig]);
-
-  const handleSort = (key) => {
-    setSortConfig((prev) => {
-      if (prev.key === key) {
-        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
-      }
-      return { key, direction: "asc" };
-    });
-  };
+  }, [searchTerm, filters]);
 
   const { currentRecords, totalPages } = useMemo(() => {
     const indexOfLastRecord = currentPage * RECORDS_PER_PAGE;
@@ -370,7 +337,6 @@ const Attendance = () => {
       status: "",
     });
     setSearchTerm("");
-    setSortConfig({ key: "date", direction: "desc" });
     setCurrentPage(1);
   };
 
@@ -388,7 +354,7 @@ const Attendance = () => {
   return (
     <MainLayout>
       <div
-        className="min-w-0 overflow-x-hidden p-4 md:p-6"
+        className="min-w-0 overflow-x-clip p-4 md:p-6"
         style={{ backgroundColor: "hsl(var(--dashboard-bg))" }}
       >
         <div className="flex justify-between items-center mb-6">
@@ -411,7 +377,7 @@ const Attendance = () => {
         {/* Inline filter bar — matches the reference design:
             Search | Date Range | Employee | Status | Clear All ..... Export */}
         <div
-          className={`md:flex flex-wrap gap-3 items-center mb-6 ${showMobileMenu ? "flex flex-col" : "hidden md:flex"}`}
+          className={`relative z-40 md:flex flex-wrap gap-3 items-center mb-6 ${showMobileMenu ? "flex flex-col" : "hidden md:flex"}`}
         >
           {/* Search */}
           <div className="relative w-full md:w-64">
@@ -429,7 +395,7 @@ const Attendance = () => {
           </div>
 
           {/* Date Range */}
-          <div className="relative w-full md:w-auto" ref={datePickerRef}>
+          <div className="relative z-50 w-full md:w-auto" ref={datePickerRef}>
             <button
               onClick={() => setShowDatePicker((prev) => !prev)}
               className="flex items-center justify-between gap-2 bg-white border border-gray-200 px-4 py-2 rounded-lg w-full md:w-auto hover:bg-gray-50 transition-colors text-sm text-gray-600 shadow-sm"
@@ -451,7 +417,7 @@ const Attendance = () => {
               )}
             </button>
             {showDatePicker && (
-              <div className="absolute z-50 mt-2 bg-white border rounded-xl shadow-2xl overflow-hidden">
+              <div className="absolute left-0 z-[60] mt-2 bg-white border rounded-xl shadow-2xl overflow-hidden">
                 <DateRange
                   editableDateInputs={true}
                   onChange={handleDateRangeChange}
@@ -539,15 +505,14 @@ const Attendance = () => {
         {isLoading ? (
           <AttendanceSkeleton />
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
+          <div className="relative z-0 overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
             <table className="min-w-full border-separate border-spacing-0">
               <thead className="bg-gray-50/80 backdrop-blur-sm sticky top-0 z-10">
                 <tr>
                   {TABLE_COLUMNS.map((column) => (
                     <th
                       key={column.key}
-                      onClick={() => handleSort(column.key)}
-                      className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-200 cursor-pointer select-none hover:text-instattend-600 transition-colors"
+                      className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-200 select-none"
                     >
                       {column.label}
                     </th>

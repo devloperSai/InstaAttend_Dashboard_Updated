@@ -14,7 +14,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -22,14 +21,12 @@ import {
 } from "./form";
 import { Input } from "./input";
 import { Button } from "./button";
-import { Switch } from "./switch";
 
 const designationSchema = z.object({
   name: z
     .string()
     .min(1, "Designation name is required")
     .max(100, "Must be under 100 characters"),
-  admin_access: z.boolean().default(false),
 });
 
 export function DesignationForm({ open, onOpenChange, designation, onSubmit }) {
@@ -42,7 +39,6 @@ export function DesignationForm({ open, onOpenChange, designation, onSubmit }) {
     mode: "onChange",
     defaultValues: {
       name: designation?.designation_name || "",
-      admin_access: designation?.admin_access || false,
     },
   });
 
@@ -50,12 +46,10 @@ export function DesignationForm({ open, onOpenChange, designation, onSubmit }) {
     if (designation) {
       form.reset({
         name: designation.designation_name,
-        admin_access: designation.admin_access,
       });
     } else {
       form.reset({
         name: "",
-        admin_access: false,
       });
     }
   }, [designation, form]);
@@ -74,7 +68,7 @@ export function DesignationForm({ open, onOpenChange, designation, onSubmit }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
           <DialogTitle>{designation ? "Edit" : "Add"} Designation</DialogTitle>
           <DialogDescription>
@@ -105,27 +99,6 @@ export function DesignationForm({ open, onOpenChange, designation, onSubmit }) {
                     />
                   </FormControl>
                   <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="admin_access"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">Admin Access</FormLabel>
-                    <FormDescription>
-                      Grant admin privileges to this designation
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
                 </FormItem>
               )}
             />

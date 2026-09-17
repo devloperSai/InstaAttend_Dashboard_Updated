@@ -21,7 +21,6 @@ import {
 } from "./form.jsx";
 import { Input } from "./input";
 import { Button } from "./button";
-import { Textarea } from "./textarea";
 
 // Coordinates must look like a real "lat,long" pair — this is now a
 // REQUIRED field (previously optional), so an empty value fails too.
@@ -39,14 +38,6 @@ const departmentSchema = z.object({
       (val) => COORDINATES_REGEX.test(val.trim()),
       "Use the format: latitude,longitude (e.g. 12.9716,77.5946)",
     ),
-  address: z
-    .string()
-    .min(1, "Address is required")
-    .max(200, "Must be under 200 characters"),
-  lead: z
-    .string()
-    .min(1, "Department lead is required")
-    .max(100, "Must be under 100 characters"),
 });
 
 const DepartmentForm = ({ open, onOpenChange, department, onSubmit }) => {
@@ -56,8 +47,6 @@ const DepartmentForm = ({ open, onOpenChange, department, onSubmit }) => {
     ? {
         name: department.department_name || "",
         coordinates: department.department_lat_long || "",
-        address: department.department_address || "",
-        lead: department.department_lead || "",
       }
     : null;
 
@@ -70,8 +59,6 @@ const DepartmentForm = ({ open, onOpenChange, department, onSubmit }) => {
     defaultValues: normalizedDepartment || {
       name: "",
       coordinates: "",
-      address: "",
-      lead: "",
     },
   });
 
@@ -80,15 +67,11 @@ const DepartmentForm = ({ open, onOpenChange, department, onSubmit }) => {
       form.reset({
         name: department.department_name || "",
         coordinates: department.department_lat_long || "",
-        address: department.department_address || "",
-        lead: department.department_lead || "",
       });
     } else {
       form.reset({
         name: "",
         coordinates: "",
-        address: "",
-        lead: "",
       });
     }
   }, [department, form]);
@@ -108,7 +91,7 @@ const DepartmentForm = ({ open, onOpenChange, department, onSubmit }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[440px]">
         <DialogHeader>
           <DialogTitle>{department ? "Edit" : "Add"} Department</DialogTitle>
           <DialogDescription>
@@ -151,48 +134,6 @@ const DepartmentForm = ({ open, onOpenChange, department, onSubmit }) => {
                   <FormControl>
                     <Input
                       placeholder="e.g. 12.9716,77.5946"
-                      {...field}
-                      className={
-                        fieldState.error
-                          ? "border-red-500 focus-visible:ring-red-500"
-                          : ""
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="address"
-              render={({ field, fieldState }) => (
-                <FormItem>
-                  <FormLabel>Department Address</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Enter physical address"
-                      {...field}
-                      className={
-                        fieldState.error
-                          ? "border-red-500 focus-visible:ring-red-500"
-                          : ""
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="lead"
-              render={({ field, fieldState }) => (
-                <FormItem>
-                  <FormLabel>Department Lead</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Enter lead name"
                       {...field}
                       className={
                         fieldState.error

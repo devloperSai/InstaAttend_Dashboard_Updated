@@ -24,6 +24,9 @@ body,
 
 body {
   overflow-x: hidden;
+  overflow-y: visible; /* prevents the browser's forced overflow-y:auto,
+                           which some browsers use to clip position:fixed
+                           descendants like the portaled Filter dropdown */
 }
 
 /**

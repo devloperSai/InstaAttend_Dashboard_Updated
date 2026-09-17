@@ -11,7 +11,7 @@ import {
 import {
   CalendarDays,
   PartyPopper,
-  Users,
+  Clock3,
   UserCheck,
   UserX,
 } from "lucide-react";
@@ -19,9 +19,11 @@ import {
   format,
   isSameDay,
   isAfter,
+  isBefore,
   startOfDay,
   startOfMonth,
   endOfMonth,
+  subDays,
 } from "date-fns";
 import { getHolidays } from "../data/holidays";
 import { dashboardService } from "../api/services/dashboard.service.js";
@@ -30,7 +32,6 @@ import CalendarSkeleton from "../components/skeleton/CalendarSkeleton.jsx";
 
 const Calendar = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(null);
 
   const [calendarData, setCalendarData] = useState(null); // raw API payload for the visible month
   const [isLoading, setIsLoading] = useState(false);
@@ -58,19 +59,22 @@ const Calendar = () => {
       .slice(0, 6);
   }, [sortedHolidays]);
 
-  const selectedHoliday = useMemo(() => {
-    if (!selectedDate) return null;
-    const key = format(selectedDate, "yyyy-MM-dd");
-    return holidays.find((h) => h.date === key) || null;
-  }, [selectedDate, holidays]);
-
   // Fetch live per-date attendance counts from the admin dashboard API
   // whenever the visible month changes.
   const fetchAttendanceCalendar = useCallback(async (monthAnchor) => {
     setIsLoading(true);
     try {
-      const startDate = format(startOfMonth(monthAnchor), "yyyy-MM-dd");
-      const endDate = format(endOfMonth(monthAnchor), "yyyy-MM-dd");
+      const previousDay = subDays(new Date(), 1);
+      const monthStart = startOfMonth(monthAnchor);
+      const monthEnd = endOfMonth(monthAnchor);
+      const startDate = format(
+        isBefore(previousDay, monthStart) ? previousDay : monthStart,
+        "yyyy-MM-dd",
+      );
+      const endDate = format(
+        isAfter(previousDay, monthEnd) ? previousDay : monthEnd,
+        "yyyy-MM-dd",
+      );
       const data = await dashboardService.getAttendanceCalendar(
         "custom",
         startDate,
@@ -93,6 +97,7 @@ const Calendar = () => {
   const attendanceMap = useMemo(() => {
     const map = new Map();
     (calendarData?.records || []).forEach((r) => {
+      if (!isBefore(new Date(r.date), startOfDay(new Date()))) return;
       map.set(r.date, {
         presentCount: r.presentCount ?? 0,
         absentCount: r.absentCount ?? 0,
@@ -102,21 +107,10 @@ const Calendar = () => {
     return map;
   }, [calendarData]);
 
-  const selectedStats = useMemo(() => {
-    if (!selectedDate) return null;
-    const key = format(selectedDate, "yyyy-MM-dd");
-    return attendanceMap.get(key) || null;
-  }, [selectedDate, attendanceMap]);
-
-  // The day the stat cards reflect: whatever's selected on the calendar,
-  // defaulting to today when nothing is picked yet. This is what makes the
-  // cards "day-wise" — they read straight from attendanceMap (already
-  // fetched per-date from the attendance-calendar API) keyed by this date.
-  const activeDate = selectedDate || new Date();
-  const activeDateKey = format(activeDate, "yyyy-MM-dd");
-  const activeIsToday = isSameDay(activeDate, new Date());
-  const activeStats = attendanceMap.get(activeDateKey) || null;
-  const activeDayLabel = activeIsToday ? "Today" : format(activeDate, "d MMM");
+  const previousDay = subDays(new Date(), 1);
+  const previousDayStats = attendanceMap.get(
+    format(previousDay, "yyyy-MM-dd"),
+  ) || { presentCount: 0, absentCount: 0, halfDayCount: 0 };
 
   return (
     <MainLayout>
@@ -129,9 +123,13 @@ const Calendar = () => {
             <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
               Calendar
             </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Sundays, national holidays and live attendance at a glance
-            </p>
+            <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-instattend-200 bg-instattend-50 px-3 py-1.5 text-xs font-medium text-instattend-700">
+              <CalendarDays className="h-3.5 w-3.5" />
+              <span>
+                Attendance cards: Yesterday,{" "}
+                {format(previousDay, "dd MMM yyyy")}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -139,21 +137,23 @@ const Calendar = () => {
           <CalendarSkeleton />
         ) : (
           <>
-            {/* Live day-wise snapshot — reflects whichever date is selected on
-            the calendar below, defaulting to today. */}
+            {/* Attendance snapshot for the last completed day. */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-              <Card className="glass-panel border border-white/60">
+              <Card
+                className="glass-panel border"
+                style={{ borderColor: hexToRgba(statusColors.absent, 0.35) }}
+              >
                 <CardContent className="p-4 flex items-center gap-3">
                   <div
                     className="p-2.5 rounded-full text-white flex-shrink-0"
-                    style={{ backgroundColor: statusColors.holiday }}
+                    style={{ backgroundColor: statusColors.absent }}
                   >
-                    <Users className="h-4 w-4" />
+                    <UserX className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Total Employees</p>
+                    <p className="text-xs text-gray-500">Present</p>
                     <p className="text-lg font-bold text-gray-800">
-                      {calendarData?.totalEmployees ?? 0}
+                      {previousDayStats.presentCount}
                     </p>
                   </div>
                 </CardContent>
@@ -171,11 +171,9 @@ const Calendar = () => {
                     <UserCheck className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">
-                      Present {activeDayLabel}
-                    </p>
+                    <p className="text-xs text-gray-500">Absent</p>
                     <p className="text-lg font-bold text-gray-800">
-                      {activeStats ? activeStats.presentCount : 0}
+                      {previousDayStats.absentCount}
                     </p>
                   </div>
                 </CardContent>
@@ -183,21 +181,19 @@ const Calendar = () => {
 
               <Card
                 className="glass-panel border"
-                style={{ borderColor: hexToRgba(statusColors.absent, 0.35) }}
+                style={{ borderColor: hexToRgba(statusColors.late, 0.35) }}
               >
                 <CardContent className="p-4 flex items-center gap-3">
                   <div
                     className="p-2.5 rounded-full text-white flex-shrink-0"
-                    style={{ backgroundColor: statusColors.absent }}
+                    style={{ backgroundColor: statusColors.late }}
                   >
-                    <UserX className="h-4 w-4" />
+                    <Clock3 className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">
-                      Absent {activeDayLabel}
-                    </p>
+                    <p className="text-xs text-gray-500">Half Day</p>
                     <p className="text-lg font-bold text-gray-800">
-                      {activeStats ? activeStats.absentCount : 0}
+                      {previousDayStats.halfDayCount}
                     </p>
                   </div>
                 </CardContent>
@@ -213,8 +209,6 @@ const Calendar = () => {
                   holidays={holidays}
                   attendanceMap={attendanceMap}
                   isLoading={isLoading}
-                  selectedDate={selectedDate}
-                  onSelectDate={setSelectedDate}
                 />
 
                 {/* Legend */}
@@ -259,53 +253,6 @@ const Calendar = () => {
                     </span>
                   </div>
                 </div>
-
-                {/* Selected date detail */}
-                {selectedDate && (
-                  <div className="glass-panel border border-white/60 px-4 py-3">
-                    <p className="text-sm font-semibold text-gray-800">
-                      {format(selectedDate, "EEEE, dd MMMM yyyy")}
-                    </p>
-                    {selectedHoliday ? (
-                      <p className="text-sm text-instattend-600 mt-1">
-                        {selectedHoliday.name}
-                      </p>
-                    ) : selectedDate.getDay() === 0 ? (
-                      <p className="text-sm text-gray-500 mt-1">Sunday</p>
-                    ) : selectedStats ? (
-                      <p className="text-sm text-gray-600 mt-1">
-                        <span
-                          className="font-medium"
-                          style={{ color: statusColors.present }}
-                        >
-                          {selectedStats.presentCount} Present
-                        </span>
-                        {"  ·  "}
-                        <span
-                          className="font-medium"
-                          style={{ color: statusColors.absent }}
-                        >
-                          {selectedStats.absentCount} Absent
-                        </span>
-                        {selectedStats.halfDayCount > 0 && (
-                          <>
-                            {"  ·  "}
-                            <span
-                              className="font-medium"
-                              style={{ color: statusColors.late }}
-                            >
-                              {selectedStats.halfDayCount} Half-day
-                            </span>
-                          </>
-                        )}
-                      </p>
-                    ) : (
-                      <p className="text-sm text-gray-400 mt-1">
-                        No attendance data for this day
-                      </p>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* Upcoming holidays panel */}
