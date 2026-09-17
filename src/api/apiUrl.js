@@ -100,4 +100,22 @@ export const apiUrl = {
     updateDesignation: (id) => `/designation/${id}`,
     deleteDesignation: (id) => `/designation/${id}`,
   },
+
+  // Enrollment request endpoints — for approving/rejecting new employee
+  // self-registrations before they're allowed into the system. Per the
+  // API docs, these all require an `X-Organization-Id` header (attached
+  // by enrollmentRepository, not globally, since no other endpoint group
+  // documents that header).
+  enrollment: {
+    getAll: `/enrollment-requests`,
+    getOne: (id) => `/enrollment-requests/${id}`,
+    approve: (id) => `/enrollment-requests/${id}/approve`,
+    // NOTE: a "reject" endpoint is NOT listed in the API documentation's
+    // Enrollment section (only get-request-list, get-request-details and
+    // approve-request are documented). This path mirrors the documented
+    // `/leave/:id/reject` pattern used elsewhere in the same API and is
+    // the most reasonable inference, but should be confirmed with the
+    // backend team and adjusted here if the real route differs.
+    reject: (id) => `/enrollment-requests/${id}/reject`,
+  },
 };

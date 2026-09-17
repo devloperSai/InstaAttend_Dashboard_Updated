@@ -11,6 +11,7 @@ import Expense from "./pages/Expense";
 import Leave from "./pages/Leave";
 import Calendar from "./pages/Calendar.jsx";
 import Settings from "./pages/Settings";
+import ApproveRequest from "./pages/Approverequest";
 import NotFound from "./pages/NotFound";
 import { authService } from "./api/services/auth.service";
 
@@ -43,6 +44,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <Employees />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/approve-requests"
+            element={
+              <ProtectedRoute>
+                <ApproveRequest />
               </ProtectedRoute>
             }
           />

@@ -35,9 +35,9 @@ const LeaveSkeleton = () => {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {/* Request list */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="space-y-4">
           <div className="p-4 bg-white rounded-lg shadow-sm">
             <div className="h-10 w-full max-w-md bg-gray-100 animate-pulse rounded" />
           </div>
@@ -59,19 +59,6 @@ const LeaveSkeleton = () => {
             ))}
           </div>
         </div>
-
-        {/* Balance panel */}
-        <Card className="border-none shadow-sm">
-          <CardContent className="p-6 space-y-4">
-            <div className="h-4 w-32 bg-gray-200 animate-pulse rounded" />
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="space-y-2">
-                <div className="h-3 w-3/4 bg-gray-100 animate-pulse rounded" />
-                <div className="h-1.5 w-full bg-gray-100 animate-pulse rounded-full" />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
